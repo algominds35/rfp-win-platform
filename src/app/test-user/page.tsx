@@ -97,6 +97,15 @@ export default function TestUserPage() {
           <div className="mt-8 pt-6 border-t">
             <h3 className="font-semibold mb-4">Quick Actions:</h3>
             <div className="space-y-2">
+              <button
+                onClick={() => {
+                  localStorage.setItem('userEmail', 'algomind6@gmail.com');
+                  alert('Set user email to algomind6@gmail.com');
+                }}
+                className="block w-full bg-red-100 text-red-800 px-4 py-2 rounded-lg hover:bg-red-200"
+              >
+                Set Email to algomind6@gmail.com (Your Paid Account)
+              </button>
               <Link 
                 href="/signup?plan=free" 
                 className="block bg-green-100 text-green-800 px-4 py-2 rounded-lg hover:bg-green-200"

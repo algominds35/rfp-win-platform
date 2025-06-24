@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Mail, Lock, User, CheckCircle } from 'lucide-react';
@@ -21,6 +21,38 @@ export default function SignupPage() {
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Stripe payment links for paid plans
+  const stripeLinks = {
+    basic: 'https://buy.stripe.com/test_dRm9AVfam1EP1MBbii0Fi00',
+    pro: 'https://buy.stripe.com/test_5kQ00lfam2IT1MBeuu0Fi01', 
+    enterprise: 'https://buy.stripe.com/test_dRm9AVfam1EP1MBbii0Fi00'
+  };
+
+  // Redirect paid plans to Stripe checkout immediately
+  useEffect(() => {
+    if (selectedPlan !== 'free' && stripeLinks[selectedPlan as keyof typeof stripeLinks]) {
+      console.log(`🚀 Redirecting ${selectedPlan} plan to Stripe checkout`);
+      window.location.href = stripeLinks[selectedPlan as keyof typeof stripeLinks];
+    }
+  }, [selectedPlan]);
+
+  // If it's a paid plan, show loading while redirecting
+  if (selectedPlan !== 'free') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="bg-white rounded-lg p-8 shadow-sm border text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Redirecting to Stripe Checkout...
+          </h2>
+          <p className="text-gray-600">
+            Taking you to secure payment for the {selectedPlan} plan
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const planDetails = {
     free: { name: 'Free Plan', price: '$0/month', analyses: 3 },
@@ -89,6 +121,7 @@ export default function SignupPage() {
     }
   };
 
+  // Only show signup form for FREE plan
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
@@ -124,10 +157,10 @@ export default function SignupPage() {
           </div>
         </div>
 
-        {/* Signup Form */}
+        {/* Signup Form - ONLY FOR FREE PLAN */}
         <div className="bg-white rounded-lg p-8 shadow-sm border">
           <h1 className="text-2xl font-bold text-center text-gray-900 mb-8">
-            Create Your Account
+            Create Your Free Account
           </h1>
 
           {error && (
@@ -203,7 +236,6 @@ export default function SignupPage() {
                 onChange={handleInputChange}
                 className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Your Company Inc."
-                required
               />
             </div>
 
@@ -249,14 +281,14 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? 'Creating Account...' : `Start ${planDetails[selectedPlan as keyof typeof planDetails].name}`}
+              {isLoading ? 'Creating Account...' : 'Create Free Account'}
             </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-gray-600">
-            By signing up, you agree to our{' '}
+          <div className="mt-6 text-center text-sm text-gray-600">
+            By creating an account, you agree to our{' '}
             <Link href="/terms" className="text-blue-600 hover:text-blue-700">
               Terms of Service
             </Link>{' '}
@@ -264,7 +296,7 @@ export default function SignupPage() {
             <Link href="/privacy" className="text-blue-600 hover:text-blue-700">
               Privacy Policy
             </Link>
-          </p>
+          </div>
         </div>
       </div>
     </div>

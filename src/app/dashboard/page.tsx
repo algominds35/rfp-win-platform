@@ -78,7 +78,7 @@ export default function Dashboard() {
       // Get user email from localStorage or URL params
       const userEmail = localStorage.getItem('userEmail') || 
                        new URLSearchParams(window.location.search).get('email') || 
-                       'demo-user@example.com';
+                       'algomind6@gmail.com';
       
       console.log('Dashboard - Fetching analytics for:', userEmail);
       
