@@ -193,6 +193,34 @@ export default function Dashboard() {
 
         {/* Usage Tracking Section */}
         <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+          {/* Upgrade Prompt for Free Users */}
+          {data.usage.planType === 'free' && (
+            <div className="mb-6 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg p-4 border border-orange-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Target className="h-6 w-6 text-orange-600 mr-2" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-orange-900">
+                      {data.usage.remaining.rfps === 0 ? 'Free Plan Limit Reached!' : 'Free Plan Active'}
+                    </h3>
+                    <p className="text-orange-700">
+                      {data.usage.remaining.rfps === 0 
+                        ? 'Upgrade now to continue generating winning proposals'
+                        : `${data.usage.remaining.rfps} free analyses remaining. Upgrade for unlimited access!`
+                      }
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => window.open('/#pricing', '_blank')}
+                  className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors font-semibold"
+                >
+                  Upgrade Now
+                </button>
+              </div>
+            </div>
+          )}
+          
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center">
               <BarChart3 className="h-6 w-6 text-blue-600 mr-2" />

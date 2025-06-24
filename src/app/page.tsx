@@ -2,11 +2,45 @@
 
 import Link from 'next/link';
 import { loadStripe } from '@stripe/stripe-js';
+import { useState } from 'react';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 export default function HomePage() {
-    const handleCheckout = (plan: 'basic' | 'pro' | 'enterprise') => {
+  const [email, setEmail] = useState('');
+  const [isSigningUp, setIsSigningUp] = useState(false);
+
+  const handleFreeSignup = async () => {
+    if (!email) {
+      alert('Please enter your email address');
+      return;
+    }
+
+    setIsSigningUp(true);
+    try {
+      const response = await fetch('/api/auth/free-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Store email in localStorage for dashboard
+        localStorage.setItem('userEmail', email);
+        window.location.href = '/dashboard';
+      } else {
+        alert(data.error || 'Signup failed');
+      }
+    } catch (error) {
+      alert('Signup failed. Please try again.');
+    } finally {
+      setIsSigningUp(false);
+    }
+  };
+
+  const handleCheckout = (plan: 'basic' | 'pro' | 'enterprise') => {
     // Direct redirect to Stripe payment links (no API needed!)
     const paymentLinks = {
       basic: 'https://buy.stripe.com/test_dRm9AVfam1EP1MBbii0Fi00',
@@ -17,6 +51,7 @@ export default function HomePage() {
     // Just redirect to Stripe payment page - works immediately!
     window.open(paymentLinks[plan], '_blank');
   };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
@@ -86,7 +121,47 @@ export default function HomePage() {
           <h2 className="text-3xl font-bold text-center mb-4">Professional Pricing</h2>
           <p className="text-center text-gray-600 mb-12">Choose the plan that scales with your business needs</p>
           
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-4 gap-8">
+            {/* Free Plan */}
+            <div className="bg-white rounded-xl p-8 shadow-sm border">
+              <h3 className="text-xl font-semibold mb-2">Free</h3>
+              <div className="text-3xl font-bold mb-4">$0<span className="text-lg text-gray-600">/month</span></div>
+              <ul className="space-y-3 mb-8">
+                <li className="flex items-center">
+                  <span className="text-green-500 mr-2">✓</span>
+                  3 RFP analyses per month
+                </li>
+                <li className="flex items-center">
+                  <span className="text-green-500 mr-2">✓</span>
+                  AI proposal generation
+                </li>
+                <li className="flex items-center">
+                  <span className="text-green-500 mr-2">✓</span>
+                  PDF upload & analysis
+                </li>
+                <li className="flex items-center">
+                  <span className="text-green-500 mr-2">✓</span>
+                  No credit card required
+                </li>
+              </ul>
+              <div className="mb-4">
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+              <button 
+                onClick={handleFreeSignup}
+                disabled={isSigningUp}
+                className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+              >
+                {isSigningUp ? 'Creating Account...' : 'Start Free'}
+              </button>
+            </div>
+
             {/* Basic Plan */}
             <div className="bg-white rounded-xl p-8 shadow-sm border">
               <h3 className="text-xl font-semibold mb-2">Basic</h3>

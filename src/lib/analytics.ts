@@ -1,10 +1,11 @@
 import { supabaseAdmin } from './supabase';
 
 // Plan limits for RFP analyses per month
-export const PLAN_LIMITS = {
+const PLAN_LIMITS = {
+  free: 3,
   basic: 25,
-  professional: 250,
-  enterprise: 5000
+  pro: 250,
+  enterprise: 5000,
 } as const;
 
 export type PlanType = keyof typeof PLAN_LIMITS;
@@ -252,12 +253,13 @@ export class AnalyticsService {
   // Create subscription (simplified for customers table)
   static async createSubscription(
     userId: string,
-    plan: 'basic' | 'pro' | 'enterprise',
+    plan: 'free' | 'basic' | 'pro' | 'enterprise',
     stripeCustomerId?: string,
     stripeSubscriptionId?: string
   ) {
     try {
       const planLimits = {
+        free: 3,
         basic: 25,
         pro: 250,
         enterprise: 5000
@@ -277,7 +279,7 @@ export class AnalyticsService {
       return { success: true };
     } catch (error) {
       console.error('Error creating subscription:', error);
-      return { success: false, error };
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 
