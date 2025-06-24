@@ -2,43 +2,10 @@
 
 import Link from 'next/link';
 import { loadStripe } from '@stripe/stripe-js';
-import { useState } from 'react';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 export default function HomePage() {
-  const [email, setEmail] = useState('');
-  const [isSigningUp, setIsSigningUp] = useState(false);
-
-  const handleFreeSignup = async () => {
-    if (!email) {
-      alert('Please enter your email address');
-      return;
-    }
-
-    setIsSigningUp(true);
-    try {
-      const response = await fetch('/api/auth/free-signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        // Store email in localStorage for dashboard
-        localStorage.setItem('userEmail', email);
-        window.location.href = '/dashboard';
-      } else {
-        alert(data.error || 'Signup failed');
-      }
-    } catch (error) {
-      alert('Signup failed. Please try again.');
-    } finally {
-      setIsSigningUp(false);
-    }
-  };
 
   const handleCheckout = (plan: 'basic' | 'pro' | 'enterprise') => {
     // Direct redirect to Stripe payment links (no API needed!)
@@ -144,22 +111,12 @@ export default function HomePage() {
                   No credit card required
                 </li>
               </ul>
-              <div className="mb-4">
-                <input
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-              <button 
-                onClick={handleFreeSignup}
-                disabled={isSigningUp}
-                className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+              <Link 
+                href="/signup?plan=free"
+                className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors text-center block font-semibold"
               >
-                {isSigningUp ? 'Creating Account...' : 'Start Free'}
-              </button>
+                Start Free
+              </Link>
             </div>
 
             {/* Basic Plan */}
@@ -184,12 +141,12 @@ export default function HomePage() {
                   Email support
                 </li>
               </ul>
-              <button 
-                onClick={() => handleCheckout('basic')}
-                className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors"
+              <Link 
+                href="/signup?plan=basic"
+                className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors text-center block font-semibold"
               >
                 Get Started
-              </button>
+              </Link>
             </div>
 
             {/* Pro Plan */}
@@ -223,12 +180,12 @@ export default function HomePage() {
                   Custom templates
                 </li>
               </ul>
-              <button 
-                onClick={() => handleCheckout('pro')}
-                className="w-full bg-white text-blue-600 py-3 rounded-lg hover:bg-gray-100 transition-colors font-semibold"
+              <Link 
+                href="/signup?plan=pro"
+                className="w-full bg-white text-blue-600 py-3 rounded-lg hover:bg-gray-100 transition-colors font-semibold text-center block"
               >
                 Get Started
-              </button>
+              </Link>
             </div>
 
             {/* Enterprise Plan */}
@@ -257,12 +214,12 @@ export default function HomePage() {
                   White-label options
                 </li>
               </ul>
-              <button 
-                onClick={() => handleCheckout('enterprise')}
-                className="w-full bg-gray-900 text-white py-3 rounded-lg hover:bg-gray-800 transition-colors"
+              <Link 
+                href="/signup?plan=enterprise"
+                className="w-full bg-gray-900 text-white py-3 rounded-lg hover:bg-gray-800 transition-colors text-center block font-semibold"
               >
                 Contact Sales
-              </button>
+              </Link>
             </div>
           </div>
         </div>

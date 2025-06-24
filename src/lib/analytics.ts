@@ -44,7 +44,7 @@ export interface RfpPipelineItem {
 
 export class AnalyticsService {
   
-  // Track user action (RFP upload, proposal generation, etc.)
+  // Track user action (RFP upload, proposal generation, etc.) - REAL TRACKING
   static async trackUsage(
     userId: string, 
     action: 'rfp_upload' | 'rfp_analysis' | 'proposal_generation' | 'api_call',
@@ -52,11 +52,36 @@ export class AnalyticsService {
     metadata?: Record<string, any>
   ) {
     try {
-      // For now, we'll just log to console since we're using the customers table
-      console.log('Usage tracked:', { userId, action, resourceId, metadata });
+      console.log('REAL Usage tracking:', { userId, action, resourceId, metadata });
       
-      // Update usage in customers table
-      if (action === 'rfp_analysis') {
+      // Get customer ID first
+      const { data: customer } = await supabaseAdmin
+        .from('customers')
+        .select('id')
+        .eq('email', userId)
+        .single();
+
+      if (!customer) {
+        console.error('Customer not found for usage tracking:', userId);
+        return { success: false, error: 'Customer not found' };
+      }
+
+      // Log usage in usage_logs table
+      const { error: logError } = await supabaseAdmin
+        .from('usage_logs')
+        .insert({
+          customer_id: customer.id,
+          user_email: userId,
+          action,
+          metadata: metadata || {}
+        });
+
+      if (logError) {
+        console.error('Error logging usage:', logError);
+      }
+
+      // Update usage count in customers table
+      if (action === 'rfp_analysis' || action === 'proposal_generation') {
         await this.incrementAnalysisUsage(userId);
       }
 
@@ -111,16 +136,25 @@ export class AnalyticsService {
 
       if (customerError) {
         console.error('Error getting customer data:', customerError);
+        
+        // If customer doesn't exist, create a new free plan customer
+        if (customerError.code === 'PGRST116') {
+          console.log('Customer not found, creating new free plan customer');
+          return await this.createNewCustomer(userId, 'free');
+        }
         throw customerError;
       }
 
       if (!customer) {
-        throw new Error('Customer not found');
+        console.log('No customer data, creating new free plan customer');
+        return await this.createNewCustomer(userId, 'free');
       }
 
-      const planType = (customer.plan_type || 'basic') as PlanType;
+      const planType = (customer.plan_type || 'free') as PlanType;
       const rfpLimit = customer.analyses_limit || PLAN_LIMITS[planType];
       const rfpsUsed = customer.analyses_used || 0;
+
+      console.log(`Customer found: ${customer.email}, Plan: ${planType}, Used: ${rfpsUsed}/${rfpLimit}`);
 
       return {
         rfpsUsed,
@@ -135,46 +169,180 @@ export class AnalyticsService {
       };
     } catch (error) {
       console.error('Error getting user usage:', error);
+      // Return free plan defaults for new users
       return {
         rfpsUsed: 0,
-        rfpLimit: 25,
+        rfpLimit: 3,
         proposalsUsed: 0,
-        proposalLimit: 25,
-        planType: 'basic' as PlanType,
+        proposalLimit: 3,
+        planType: 'free' as PlanType,
         remaining: {
-          rfps: 25,
-          proposals: 25
+          rfps: 3,
+          proposals: 3
         }
       };
     }
   }
 
-  // Get user analytics for dashboard
+  // Create new customer with free plan
+  static async createNewCustomer(email: string, plan: PlanType): Promise<UsageData> {
+    try {
+      const limit = PLAN_LIMITS[plan];
+      
+      const { data: newCustomer, error } = await supabaseAdmin
+        .from('customers')
+        .insert({
+          email,
+          plan_type: plan,
+          analyses_limit: limit,
+          analyses_used: 0,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating new customer:', error);
+        throw error;
+      }
+
+      console.log('New customer created:', newCustomer);
+
+      return {
+        rfpsUsed: 0,
+        rfpLimit: limit,
+        proposalsUsed: 0,
+        proposalLimit: limit,
+        planType: plan,
+        remaining: {
+          rfps: limit,
+          proposals: limit
+        }
+      };
+    } catch (error) {
+      console.error('Error creating new customer:', error);
+      return {
+        rfpsUsed: 0,
+        rfpLimit: 3,
+        proposalsUsed: 0,
+        proposalLimit: 3,
+        planType: 'free' as PlanType,
+        remaining: {
+          rfps: 3,
+          proposals: 3
+        }
+      };
+    }
+  }
+
+  // Get user analytics for dashboard - REAL DATA FROM DATABASE
   static async getUserAnalytics(userId: string): Promise<UserAnalytics> {
     try {
-      // Get customer data
+      // Get customer data first
       const { data: customer, error: customerError } = await supabaseAdmin
         .from('customers')
         .select('*')
         .eq('email', userId)
         .single();
 
-      if (customerError) throw customerError;
+      if (customerError) {
+        console.error('Customer not found:', customerError);
+        return {
+          totalRfps: 0,
+          winRate: 0,
+          pipelineValue: 0,
+          avgResponseTime: 0,
+          rfpsThisMonth: 0,
+          proposalsGenerated: 0,
+          activeProposals: 0
+        };
+      }
 
-      const analysesUsed = customer?.analyses_used || 0;
+      const customerId = customer.id;
+
+      // Get REAL RFP data from database
+      const { data: rfps, error: rfpError } = await supabaseAdmin
+        .from('rfps')
+        .select('*')
+        .eq('customer_id', customerId);
+
+      if (rfpError) {
+        console.error('Error fetching RFPs:', rfpError);
+      }
+
+      // Get REAL proposal data from database
+      const { data: proposals, error: proposalError } = await supabaseAdmin
+        .from('proposals')
+        .select('*')
+        .eq('customer_id', customerId);
+
+      if (proposalError) {
+        console.error('Error fetching proposals:', proposalError);
+      }
+
+      // Calculate REAL analytics from actual data
+      const totalRfps = rfps?.length || 0;
+      const totalProposals = proposals?.length || 0;
+      const wonProposals = proposals?.filter(p => p.status === 'won').length || 0;
+      const activeProposals = proposals?.filter(p => ['draft', 'submitted', 'in_progress'].includes(p.status)).length || 0;
       
-      // Generate realistic analytics based on usage
-      const analytics = {
-        totalRfps: analysesUsed,
-        winRate: Math.min(95, Math.max(45, 60 + analysesUsed * 2)), // 60-95% based on usage
-        pipelineValue: analysesUsed * 15000 + Math.random() * 50000, // $15K per analysis
-        avgResponseTime: 2.3,
-        rfpsThisMonth: analysesUsed,
-        proposalsGenerated: analysesUsed,
-        activeProposals: Math.ceil(analysesUsed * 0.7) // 70% still active
+      // Calculate win rate
+      const winRate = totalProposals > 0 ? Math.round((wonProposals / totalProposals) * 100) : 0;
+      
+      // Calculate pipeline value from proposals
+      const pipelineValue = proposals?.reduce((sum, p) => {
+        const value = parseFloat(p.estimated_value || '0');
+        return sum + (isNaN(value) ? 0 : value);
+      }, 0) || 0;
+
+      // Calculate average response time (days between RFP upload and proposal creation)
+      let avgResponseTime = 0;
+      if (rfps && proposals && rfps.length > 0 && proposals.length > 0) {
+        const responseTimes = proposals
+          .filter(p => p.rfp_id)
+          .map(p => {
+            const rfp = rfps.find(r => r.id === p.rfp_id);
+            if (rfp) {
+              const rfpDate = new Date(rfp.created_at);
+              const proposalDate = new Date(p.created_at);
+              return (proposalDate.getTime() - rfpDate.getTime()) / (1000 * 60 * 60 * 24); // days
+            }
+            return 0;
+          })
+          .filter(time => time > 0);
+
+        if (responseTimes.length > 0) {
+          avgResponseTime = responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length;
+        }
+      }
+
+      // Get this month's data
+      const currentMonth = new Date();
+      const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+      
+      const rfpsThisMonth = rfps?.filter(r => new Date(r.created_at) >= firstDayOfMonth).length || 0;
+
+      console.log(`REAL Analytics for ${userId}:`, {
+        totalRfps,
+        totalProposals,
+        wonProposals,
+        winRate,
+        pipelineValue,
+        avgResponseTime,
+        rfpsThisMonth,
+        activeProposals
+      });
+
+      return {
+        totalRfps,
+        winRate,
+        pipelineValue,
+        avgResponseTime: Math.round(avgResponseTime * 10) / 10, // Round to 1 decimal
+        rfpsThisMonth,
+        proposalsGenerated: totalProposals,
+        activeProposals
       };
 
-      return analytics;
     } catch (error) {
       console.error('Error getting user analytics:', error);
       return {
@@ -189,34 +357,64 @@ export class AnalyticsService {
     }
   }
 
-  // Get RFP pipeline data
+  // Get RFP pipeline data - REAL DATA FROM DATABASE
   static async getRfpPipeline(userId: string): Promise<RfpPipelineItem[]> {
     try {
-      // Get customer data to determine how many pipeline items to show
-      const { data: customer } = await supabaseAdmin
+      // Get customer data first
+      const { data: customer, error: customerError } = await supabaseAdmin
         .from('customers')
-        .select('analyses_used')
+        .select('*')
         .eq('email', userId)
         .single();
 
-      const analysesUsed = customer?.analyses_used || 3;
-      
-      // Generate realistic pipeline
-      const pipeline = [];
-      const clients = ['TechCorp Solutions', 'StartupXYZ', 'Enterprise Inc', 'Global Systems', 'Innovation Labs'];
-      const projects = ['Digital Transformation', 'Cloud Migration', 'AI Implementation', 'System Integration', 'Process Automation'];
-      
-      for (let i = 0; i < Math.min(5, analysesUsed); i++) {
-        pipeline.push({
-          id: (i + 1).toString(),
-          title: `${projects[i % projects.length]} Project`,
-          client: clients[i % clients.length],
-          value: `$${(45000 + Math.random() * 80000).toLocaleString()}`,
-          status: (['in_progress', 'submitted', 'draft'] as const)[i % 3],
-          winProbability: Math.floor(50 + Math.random() * 40),
-          date: new Date(Date.now() - i * 86400000 * 3).toISOString().split('T')[0]
-        });
+      if (customerError) {
+        console.error('Customer not found for pipeline:', customerError);
+        return [];
       }
+
+      const customerId = customer.id;
+
+      // Get REAL proposals - NO JOIN to avoid relationship errors
+      const { data: proposals, error: proposalError } = await supabaseAdmin
+        .from('proposals')
+        .select('*')
+        .eq('customer_id', customerId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (proposalError) {
+        console.error('Error fetching proposals for pipeline:', proposalError);
+        return [];
+      }
+
+      // Get RFPs separately if needed
+      const { data: rfps } = await supabaseAdmin
+        .from('rfps')
+        .select('*')
+        .eq('customer_id', customerId);
+
+      // Convert real proposals to pipeline format
+      const pipeline: RfpPipelineItem[] = (proposals || []).map((proposal, index) => {
+        // Try to find matching RFP
+        const matchingRfp = rfps?.find(rfp => rfp.id === proposal.rfp_id);
+        const rfpTitle = matchingRfp?.title || proposal.title || `Proposal #${index + 1}`;
+        
+        const value = proposal.estimated_value ? 
+          `$${parseFloat(proposal.estimated_value).toLocaleString()}` : 
+          '$0';
+
+        return {
+          id: proposal.id,
+          title: rfpTitle,
+          client: proposal.client_name || 'Client',
+          value: value,
+          status: proposal.status as 'draft' | 'submitted' | 'won' | 'lost' | 'in_progress',
+          winProbability: proposal.win_probability || 50,
+          date: new Date(proposal.created_at).toISOString().split('T')[0]
+        };
+      });
+
+      console.log(`REAL Pipeline for ${userId}:`, pipeline);
 
       return pipeline;
     } catch (error) {

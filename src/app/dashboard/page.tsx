@@ -75,9 +75,17 @@ export default function Dashboard() {
 
   const fetchAnalytics = async () => {
     try {
-      const response = await fetch('/api/analytics');
+      // Get user email from localStorage or URL params
+      const userEmail = localStorage.getItem('userEmail') || 
+                       new URLSearchParams(window.location.search).get('email') || 
+                       'demo-user@example.com';
+      
+      console.log('Dashboard - Fetching analytics for:', userEmail);
+      
+      const response = await fetch(`/api/analytics?email=${encodeURIComponent(userEmail)}`);
       if (response.ok) {
         const data = await response.json();
+        console.log('Dashboard - Analytics data received:', data);
         setAnalyticsData(data);
       } else {
         // Use mock data if API fails (for demo purposes)
