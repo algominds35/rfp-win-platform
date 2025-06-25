@@ -56,6 +56,29 @@ export async function POST() {
 
     console.log('📊 Table status:', tableChecks);
 
+    // Fix missing columns in existing tables
+    if (tableChecks.rfps) {
+      try {
+        await supabaseAdmin.rpc('exec_sql', { 
+          sql: `ALTER TABLE public.rfps ADD COLUMN IF NOT EXISTS customer_id TEXT;` 
+        });
+        console.log('✅ Fixed rfps.customer_id column');
+      } catch (error) {
+        console.log('Note: rfps.customer_id column may already exist');
+      }
+    }
+
+    if (tableChecks.proposals) {
+      try {
+        await supabaseAdmin.rpc('exec_sql', { 
+          sql: `ALTER TABLE public.proposals ADD COLUMN IF NOT EXISTS customer_id TEXT;` 
+        });
+        console.log('✅ Fixed proposals.customer_id column');
+      } catch (error) {
+        console.log('Note: proposals.customer_id column may already exist');
+      }
+    }
+
     // If tables don't exist, provide instructions
     const missingTables = Object.entries(tableChecks)
       .filter(([_, exists]) => !exists)
@@ -68,7 +91,7 @@ export async function POST() {
 -- Create RFPs table
 CREATE TABLE IF NOT EXISTS public.rfps (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  customer_id BIGINT NOT NULL,
+  customer_id TEXT NOT NULL,
   title TEXT NOT NULL,
   description TEXT,
   requirements TEXT,
@@ -82,7 +105,7 @@ CREATE TABLE IF NOT EXISTS public.rfps (
 CREATE TABLE IF NOT EXISTS public.proposals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   rfp_id UUID REFERENCES public.rfps(id),
-  customer_id BIGINT NOT NULL,
+  customer_id TEXT NOT NULL,
   title TEXT NOT NULL,
   content TEXT,
   status TEXT DEFAULT 'draft',
@@ -95,7 +118,7 @@ CREATE TABLE IF NOT EXISTS public.proposals (
 -- Create Usage Logs table
 CREATE TABLE IF NOT EXISTS public.usage_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  customer_id BIGINT NOT NULL,
+  customer_id TEXT NOT NULL,
   user_email TEXT,
   action TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -105,9 +128,9 @@ CREATE TABLE IF NOT EXISTS public.usage_logs (
 -- Add test data
 INSERT INTO public.rfps (customer_id, title, description, requirements, budget_range, status) 
 VALUES 
-  (1, 'Cloud Infrastructure Migration', 'Migrate legacy systems to cloud', 'AWS expertise required', '$50,000 - $100,000', 'open'),
-  (1, 'Mobile App Development', 'Build cross-platform mobile app', 'React Native skills needed', '$25,000 - $50,000', 'open'),
-  (1, 'Data Analytics Platform', 'Business intelligence dashboard', 'Python and SQL expertise', '$75,000 - $150,000', 'pending')
+  ('demo-user@example.com', 'Cloud Infrastructure Migration', 'Migrate legacy systems to cloud', 'AWS expertise required', '$50,000 - $100,000', 'open'),
+  ('demo-user@example.com', 'Mobile App Development', 'Build cross-platform mobile app', 'React Native skills needed', '$25,000 - $50,000', 'open'),
+  ('demo-user@example.com', 'Data Analytics Platform', 'Business intelligence dashboard', 'Python and SQL expertise', '$75,000 - $150,000', 'pending')
 ON CONFLICT DO NOTHING;
 
 -- Enable Row Level Security (RLS)
@@ -139,12 +162,12 @@ CREATE POLICY "Allow all operations on usage_logs" ON public.usage_logs FOR ALL 
       .limit(1);
 
     if (!existingRfps || existingRfps.length === 0) {
-      // Add test data
+      // Add test data with proper customer_id format
       const { error: insertError } = await supabaseAdmin
         .from('rfps')
         .insert([
           {
-            customer_id: 1,
+            customer_id: 'demo-user@example.com',
             title: 'Cloud Infrastructure Migration',
             description: 'Migrate legacy systems to cloud',
             requirements: 'AWS expertise required',
@@ -152,7 +175,7 @@ CREATE POLICY "Allow all operations on usage_logs" ON public.usage_logs FOR ALL 
             status: 'open'
           },
           {
-            customer_id: 1,
+            customer_id: 'demo-user@example.com',
             title: 'Mobile App Development',
             description: 'Build cross-platform mobile app',
             requirements: 'React Native skills needed',

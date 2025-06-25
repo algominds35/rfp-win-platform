@@ -30,6 +30,9 @@ export default function HomePage() {
               <span className="ml-2 text-xl font-bold text-gray-900">RFP Win Platform</span>
             </div>
             <div className="flex items-center space-x-4">
+              <Link href="/admin" className="text-purple-600 hover:text-purple-700 font-semibold">
+                Admin
+              </Link>
               <Link href="/fix-plan" className="text-red-600 hover:text-red-700 font-semibold">
                 Fix Plan
               </Link>
