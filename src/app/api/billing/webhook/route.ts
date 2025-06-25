@@ -53,12 +53,15 @@ export async function POST(request: NextRequest) {
 
           if (session.amount_total) {
             const amount = session.amount_total / 100; // Convert from cents
-            if (amount >= 299) {
-              plan = 'pro';
-              analysesLimit = 250;
-            } else if (amount >= 799) {
+            if (amount >= 799) {
               plan = 'enterprise';
               analysesLimit = 5000;
+            } else if (amount >= 299) {
+              plan = 'pro';
+              analysesLimit = 250;
+            } else if (amount >= 49) {
+              plan = 'basic';
+              analysesLimit = 25;
             }
           }
 

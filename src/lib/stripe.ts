@@ -10,7 +10,7 @@ const stripe = process.env.STRIPE_SECRET_KEY
 export const PLANS = {
   starter: {
     name: 'Basic',
-    price: 9900, // $99 in cents
+    price: 4900, // $49 in cents
     proposals_limit: 10,
     users_limit: 3,
     features: ['Basic AI generation', 'PDF upload', 'Email support']

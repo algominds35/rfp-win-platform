@@ -14,7 +14,11 @@ export default function SuccessPage() {
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          router.push('/dashboard');
+          clearInterval(timer);
+          // Use setTimeout to avoid the React setState during render error
+          setTimeout(() => {
+            router.push('/dashboard');
+          }, 100);
           return 0;
         }
         return prev - 1;
