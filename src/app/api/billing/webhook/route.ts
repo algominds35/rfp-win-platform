@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function POST(request: NextRequest) {
   // Check if Stripe is initialized
@@ -32,47 +37,111 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        const userId = session.metadata?.userId;
-        const plan = session.metadata?.plan as 'basic' | 'pro' | 'enterprise';
-
-        if (userId && session.subscription) {
+        const customerEmail = session.customer_details?.email;
+        
+        console.log('🎉 Payment completed for:', customerEmail);
+        
+        if (customerEmail && session.subscription) {
           // Get subscription details
           const subscription = await stripe.subscriptions.retrieve(
             session.subscription as string
           );
 
-          // Set RFP limits based on plan
-          const rfpLimits = {
-            basic: 10,
-            pro: 100,
-            enterprise: -1, // unlimited
-          };
+          // Determine plan based on amount paid
+          let plan: 'basic' | 'pro' | 'enterprise' = 'basic';
+          let analysesLimit = 25;
 
-          // Save subscription to database
-          await supabase.from('subscriptions').upsert({
-            user_id: userId,
-            stripe_customer_id: session.customer as string,
-            stripe_subscription_id: subscription.id,
-            plan,
-            status: subscription.status,
-            rfp_limit: rfpLimits[plan],
-            rfps_used: 0,
-          });
+          if (session.amount_total) {
+            const amount = session.amount_total / 100; // Convert from cents
+            if (amount >= 299) {
+              plan = 'pro';
+              analysesLimit = 250;
+            } else if (amount >= 799) {
+              plan = 'enterprise';
+              analysesLimit = 5000;
+            }
+          }
+
+          console.log(`Upgrading ${customerEmail} to ${plan} plan with ${analysesLimit} analyses`);
+
+          // Update customer in the customers table
+          const { data, error } = await supabaseAdmin
+            .from('customers')
+            .upsert({
+              email: customerEmail,
+              plan_type: plan,
+              analyses_limit: analysesLimit,
+              analyses_used: 0,
+              stripe_customer_id: session.customer as string,
+              stripe_subscription_id: subscription.id,
+              subscription_status: 'active',
+              current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+              current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'email'
+            })
+            .select();
+
+          if (error) {
+            console.error('❌ Error updating customer:', error);
+          } else {
+            console.log('✅ Customer upgraded successfully:', data);
+          }
         }
         break;
       }
 
-      case 'customer.subscription.updated':
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object as Stripe.Subscription;
+        
+        // Find customer by stripe subscription ID
+        const { data: customer } = await supabaseAdmin
+          .from('customers')
+          .select('email')
+          .eq('stripe_subscription_id', subscription.id)
+          .single();
+
+        if (customer) {
+          await supabaseAdmin
+            .from('customers')
+            .update({
+              subscription_status: subscription.status,
+              current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+              current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('stripe_subscription_id', subscription.id);
+
+          console.log(`✅ Updated subscription status for ${customer.email}: ${subscription.status}`);
+        }
+        break;
+      }
+
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
         
-        await supabase
-          .from('subscriptions')
-          .update({
-            status: subscription.status,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('stripe_subscription_id', subscription.id);
+        // Downgrade customer to free plan
+        const { data: customer } = await supabaseAdmin
+          .from('customers')
+          .select('email')
+          .eq('stripe_subscription_id', subscription.id)
+          .single();
+
+        if (customer) {
+          await supabaseAdmin
+            .from('customers')
+            .update({
+              plan_type: 'free',
+              analyses_limit: 3,
+              subscription_status: 'canceled',
+              stripe_subscription_id: null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('stripe_subscription_id', subscription.id);
+
+          console.log(`✅ Downgraded ${customer.email} to free plan`);
+        }
         break;
       }
     }

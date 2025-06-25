@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseAdmin = createClient(
@@ -6,17 +6,18 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { email, plan } = await request.json();
     
     if (!email || !plan) {
-      return NextResponse.json({ error: 'Email and plan required' }, { status: 400 });
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Email and plan are required' 
+      }, { status: 400 });
     }
 
-    console.log(`🔧 Fixing plan for ${email} to ${plan}`);
-
-    // Plan limits
+    // Define plan limits
     const planLimits = {
       free: 3,
       basic: 25,
@@ -24,36 +25,46 @@ export async function POST(request: Request) {
       enterprise: 5000
     };
 
-    const limit = planLimits[plan as keyof typeof planLimits] || 25;
+    const analysesLimit = planLimits[plan as keyof typeof planLimits] || 3;
+
+    console.log(`🔧 Manually upgrading ${email} to ${plan} plan with ${analysesLimit} analyses`);
 
     // Update customer plan
-    const { data: updatedCustomer, error } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from('customers')
-      .update({
+      .upsert({
+        email: email,
         plan_type: plan,
-        analyses_limit: limit,
+        analyses_limit: analysesLimit,
+        analyses_used: 0,
         subscription_status: 'active',
         updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'email'
       })
-      .eq('email', email)
-      .select()
-      .single();
+      .select();
 
     if (error) {
-      console.error('Error updating plan:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('❌ Error upgrading customer:', error);
+      return NextResponse.json({ 
+        success: false, 
+        error: error.message 
+      }, { status: 500 });
     }
 
-    console.log(`✅ Plan updated successfully:`, updatedCustomer);
+    console.log('✅ Customer upgraded successfully:', data);
 
-    return NextResponse.json({
-      success: true,
-      message: `Plan updated to ${plan} with ${limit} analyses per month`,
-      customer: updatedCustomer
+    return NextResponse.json({ 
+      success: true, 
+      message: `Successfully upgraded ${email} to ${plan} plan`,
+      customer: data[0]
     });
 
   } catch (error) {
-    console.error('Fix plan error:', error);
-    return NextResponse.json({ error: 'Failed to fix plan' }, { status: 500 });
+    console.error('❌ Plan upgrade failed:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Internal server error' 
+    }, { status: 500 });
   }
 } 
