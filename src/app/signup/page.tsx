@@ -76,7 +76,7 @@ function SignupForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          planType: selectedPlan
+          plan: selectedPlan
         })
       });
 
