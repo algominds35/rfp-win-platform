@@ -401,14 +401,14 @@ function ProposalContent() {
                   {usageError.planType === 'basic' && (
                     <>
                       <button 
-                        onClick={() => window.open('https://buy.stripe.com/test_5kQ00lfam2IT1MBeuu0Fi01', '_blank')}
+                        onClick={() => window.open('https://buy.stripe.com/7sYbJ34vI4R10Ix1HI0Fi03', '_blank')}
                         className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
                       >
                         🚀 Upgrade to Professional
                         <div className="text-sm opacity-90">250 proposals/month - $299</div>
                       </button>
                       <button 
-                        onClick={() => window.open('https://buy.stripe.com/test_dRm9AVfam1EP1MBbii0Fi00', '_blank')}
+                        onClick={() => window.open('https://buy.stripe.com/5kQ00lfam2IT1MBeuu0Fi01', '_blank')}
                         className="bg-gray-900 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors"
                       >
                         🏢 Upgrade to Enterprise
@@ -419,7 +419,7 @@ function ProposalContent() {
                   
                   {usageError.planType === 'professional' && (
                     <button 
-                      onClick={() => window.open('https://buy.stripe.com/test_dRm9AVfam1EP1MBbii0Fi00', '_blank')}
+                      onClick={() => window.open('https://buy.stripe.com/5kQ00lfam2IT1MBeuu0Fi01', '_blank')}
                       className="bg-gray-900 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors"
                     >
                       🏢 Upgrade to Enterprise

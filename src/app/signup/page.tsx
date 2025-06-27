@@ -24,9 +24,9 @@ function SignupForm() {
 
   // Stripe payment links for paid plans
   const stripeLinks = {
-    basic: 'https://buy.stripe.com/test_dRm9AVfam1EP1MBbii0Fi00',
-    pro: 'https://buy.stripe.com/test_5kQ00lfam2IT1MBeuu0Fi01',
-    enterprise: 'https://buy.stripe.com/test_dRm9AVfam1EP1MBbii0Fi00'
+    basic: 'https://buy.stripe.com/dRmdRbgeq3MX76Vfyy0Fi02',
+    pro: 'https://buy.stripe.com/7sYbJ34vI4R10Ix1HI0Fi03',
+    enterprise: 'https://buy.stripe.com/5kQ00lfam2IT1MBeuu0Fi01'
   };
 
   // Redirect paid plans to Stripe checkout

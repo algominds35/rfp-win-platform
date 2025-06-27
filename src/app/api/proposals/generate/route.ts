@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { openai } from '@/lib/openai';
 import { AnalyticsService } from '@/lib/analytics';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,10 +14,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check usage limits first
+    // Check usage limits first - STRICT ENFORCEMENT
     const usageCheck = await AnalyticsService.checkUsageLimit(userId, 'proposal_generation');
     
+    console.log('🔍 Proposal usage check for:', userId, usageCheck);
+    
     if (!usageCheck.allowed) {
+      console.log('🚫 BLOCKING: Proposal usage limit exceeded', usageCheck);
       return NextResponse.json(
         { 
           error: 'Usage limit exceeded',
@@ -28,6 +32,8 @@ export async function POST(request: NextRequest) {
         { status: 429 }
       );
     }
+    
+    console.log('✅ Proposal usage allowed, proceeding');
 
     // Generate proposal using OpenAI
     const completion = await openai.chat.completions.create({
@@ -80,12 +86,56 @@ Format as a complete, professional document ready for submission.`
       throw new Error('No proposal content generated');
     }
 
-    // Log the successful usage
-    await AnalyticsService.logUsage(userId, 'proposal_generation', {
-      rfpTitle: rfpAnalysis.title,
-      client: rfpAnalysis.client,
-      proposalLength: proposalContent.length
-    });
+    // CRITICAL: Save proposal data to database
+    try {
+      console.log('💾 Saving proposal to database...');
+      
+      // Get customer ID first
+      const { data: customer } = await supabaseAdmin
+        .from('customers')
+        .select('id')
+        .eq('email', userId)
+        .single();
+
+      if (customer) {
+        // Save the proposal to database
+        const { data: savedProposal, error: saveError } = await supabaseAdmin
+          .from('proposals')
+          .insert({
+            customer_id: customer.id,
+            title: `Proposal for ${rfpAnalysis.title}`,
+            content: proposalContent,
+            client_name: rfpAnalysis.client,
+            status: 'draft',
+            estimated_value: '100000', // Default value
+            win_probability: 75,
+            created_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (saveError) {
+          console.error('❌ Failed to save proposal:', saveError);
+        } else {
+          console.log('✅ Proposal saved successfully:', savedProposal.id);
+        }
+      }
+    } catch (saveError) {
+      console.error('❌ Database save error:', saveError);
+    }
+
+    // Log the successful usage - CRITICAL FOR TRACKING
+    try {
+      await AnalyticsService.logUsage(userId, 'proposal_generation', {
+        rfpTitle: rfpAnalysis.title,
+        client: rfpAnalysis.client,
+        proposalLength: proposalContent.length
+      });
+      console.log('✅ Usage logged successfully');
+    } catch (usageError) {
+      console.error('❌ CRITICAL: Failed to log usage:', usageError);
+      // Don't fail the request, but this is critical for billing
+    }
 
     // Get updated usage stats
     const updatedUsage = await AnalyticsService.getUserUsage(userId);

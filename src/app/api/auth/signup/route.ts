@@ -59,37 +59,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create user in Supabase Auth
-    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: {
-        first_name: firstName,
-        last_name: lastName,
-        company: company,
-        plan: plan
-      }
-    });
-
-    if (authError) {
-      console.error('Auth creation error:', authError);
-      return NextResponse.json(
-        { success: false, error: authError.message },
-        { status: 400 }
-      );
-    }
-
-    // Create customer record in our customers table
+    // SIMPLIFIED: Just create customer record directly (skip complex auth)
     const { data: customer, error: customerError } = await supabase
       .from('customers')
       .insert({
-        id: authUser.user.id,
         email: email,
         first_name: firstName,
         last_name: lastName,
         company: company,
-        plan_type: plan,
+        plan_type: plan || 'free',
         analyses_limit: analysesLimit,
         analyses_used: 0,
         created_at: new Date().toISOString(),
@@ -100,10 +78,6 @@ export async function POST(request: NextRequest) {
 
     if (customerError) {
       console.error('Customer creation error:', customerError);
-      
-      // Clean up auth user if customer creation fails
-      await supabase.auth.admin.deleteUser(authUser.user.id);
-      
       return NextResponse.json(
         { success: false, error: 'Failed to create customer record' },
         { status: 500 }

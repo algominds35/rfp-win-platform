@@ -54,8 +54,8 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Customer upgraded successfully:', data);
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: `Successfully upgraded ${email} to ${plan} plan`,
       customer: data[0]
     });

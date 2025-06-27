@@ -92,7 +92,7 @@ export class AnalyticsService {
     }
   }
 
-  // Check if user has remaining usage
+  // Check if user has remaining usage - STRICT ENFORCEMENT
   static async checkUsageLimit(userId: string, action: 'rfp_analysis' | 'proposal_generation'): Promise<{
     allowed: boolean;
     remaining: number;
@@ -100,24 +100,31 @@ export class AnalyticsService {
     planType: PlanType;
   }> {
     try {
+      console.log('🔍 Checking usage limit for:', userId, action);
       const usage = await this.getUserUsage(userId);
       const used = usage.rfpsUsed;
       const limit = usage.rfpLimit;
       const remaining = Math.max(0, limit - used);
       
+      console.log('📊 Usage data:', { used, limit, remaining, planType: usage.planType });
+      
+      const allowed = remaining > 0;
+      console.log('✅ Usage allowed?', allowed);
+      
       return {
-        allowed: remaining > 0,
+        allowed,
         remaining,
         limit,
         planType: usage.planType as PlanType
       };
     } catch (error) {
-      console.error('Error checking usage limit:', error);
+      console.error('❌ Error checking usage limit:', error);
+      // DENY access on error for security
       return {
         allowed: false,
         remaining: 0,
-        limit: 25,
-        planType: 'basic'
+        limit: 3,
+        planType: 'free'
       };
     }
   }
@@ -260,21 +267,21 @@ export class AnalyticsService {
 
       const customerId = customer.id;
 
-      // Get REAL RFP data from database
+      // Get REAL RFP data from database (search by email since customer_id contains emails)
       const { data: rfps, error: rfpError } = await supabaseAdmin
         .from('rfps')
         .select('*')
-        .eq('customer_id', customerId);
+        .eq('customer_id', userId); // Use email directly since that's what's stored
 
       if (rfpError) {
         console.error('Error fetching RFPs:', rfpError);
       }
 
-      // Get REAL proposal data from database
+      // Get REAL proposal data from database (search by email since customer_id contains emails)
       const { data: proposals, error: proposalError } = await supabaseAdmin
         .from('proposals')
         .select('*')
-        .eq('customer_id', customerId);
+        .eq('customer_id', userId); // Use email directly since that's what's stored
 
       if (proposalError) {
         console.error('Error fetching proposals:', proposalError);
@@ -374,11 +381,11 @@ export class AnalyticsService {
 
       const customerId = customer.id;
 
-      // Get REAL proposals - NO JOIN to avoid relationship errors
+      // Get REAL proposals - NO JOIN to avoid relationship errors (search by email)
       const { data: proposals, error: proposalError } = await supabaseAdmin
         .from('proposals')
         .select('*')
-        .eq('customer_id', customerId)
+        .eq('customer_id', userId) // Use email directly since that's what's stored
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -387,11 +394,11 @@ export class AnalyticsService {
         return [];
       }
 
-      // Get RFPs separately if needed
+      // Get RFPs separately if needed (search by email)
       const { data: rfps } = await supabaseAdmin
         .from('rfps')
         .select('*')
-        .eq('customer_id', customerId);
+        .eq('customer_id', userId); // Use email directly since that's what's stored
 
       // Convert real proposals to pipeline format
       const pipeline: RfpPipelineItem[] = (proposals || []).map((proposal, index) => {
@@ -423,28 +430,50 @@ export class AnalyticsService {
     }
   }
 
-  // Increment analysis usage in customers table
+  // Increment analysis usage in customers table - CRITICAL FOR ENFORCEMENT
   private static async incrementAnalysisUsage(userId: string) {
     try {
+      console.log('📈 Incrementing usage for:', userId);
+      
       // First get current usage
-      const { data: currentCustomer } = await supabaseAdmin
+      const { data: currentCustomer, error: selectError } = await supabaseAdmin
         .from('customers')
-        .select('analyses_used')
+        .select('analyses_used, analyses_limit, plan_type')
         .eq('email', userId)
         .single();
 
+      if (selectError) {
+        console.error('❌ Error getting current customer:', selectError);
+        throw selectError;
+      }
+
       const currentUsage = currentCustomer?.analyses_used || 0;
+      const newUsage = currentUsage + 1;
+      
+      console.log('📊 Usage increment:', { 
+        currentUsage, 
+        newUsage, 
+        limit: currentCustomer?.analyses_limit,
+        plan: currentCustomer?.plan_type 
+      });
       
       const { error } = await supabaseAdmin
         .from('customers')
         .update({ 
-          analyses_used: currentUsage + 1
+          analyses_used: newUsage,
+          updated_at: new Date().toISOString()
         })
         .eq('email', userId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error updating usage:', error);
+        throw error;
+      }
+      
+      console.log('✅ Usage incremented successfully:', newUsage);
     } catch (error) {
-      console.error('Error incrementing analysis usage:', error);
+      console.error('❌ CRITICAL: Failed to increment analysis usage:', error);
+      throw error; // Re-throw to prevent silent failures
     }
   }
 
@@ -481,19 +510,21 @@ export class AnalyticsService {
     }
   }
 
-  // Log usage (simplified)
+  // Log usage - CRITICAL FOR TRACKING
   static async logUsage(userId: string, action: 'rfp_analysis' | 'proposal_generation', metadata?: any) {
     try {
-      console.log('Usage logged:', { userId, action, metadata });
+      console.log('📝 Logging usage:', { userId, action, metadata });
       
       if (action === 'rfp_analysis') {
         await this.incrementAnalysisUsage(userId);
+        console.log('✅ RFP analysis usage tracked successfully');
       }
       
       return { success: true };
     } catch (error) {
-      console.error('Error logging usage:', error);
-      return { success: false, error };
+      console.error('❌ CRITICAL: Failed to log usage:', error);
+      // Return error to prevent silent failures
+      throw error;
     }
   }
 } 
