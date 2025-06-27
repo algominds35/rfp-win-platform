@@ -279,10 +279,10 @@ export default function UploadPage() {
                   📊 Export Analysis
                 </button>
                 <button 
-                  onClick={() => router.push('/dashboard')}
+                  onClick={() => window.location.reload()}
                   className="border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
                 >
-                  ← Back to Dashboard
+                  📄 Analyze Another RFP
                 </button>
               </div>
             </div>
@@ -294,20 +294,21 @@ export default function UploadPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Link href="/dashboard" className="mr-4">
-                <ArrowLeft className="h-5 w-5 text-gray-600" />
-              </Link>
-              <div className="h-8 w-8 bg-blue-600 rounded"></div>
-              <span className="ml-2 text-xl font-bold text-gray-900">Upload RFP</span>
+              {/* Header */}
+        <header className="bg-white shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center">
+                <div className="h-8 w-8 bg-blue-600 rounded"></div>
+                <span className="ml-2 text-xl font-bold text-gray-900">RFP Win Platform</span>
+              </div>
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-600">Basic Plan • 24/25 analyses remaining</span>
+                <Link href="/profile" className="text-sm text-blue-600 hover:text-blue-800">Account</Link>
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-8">
