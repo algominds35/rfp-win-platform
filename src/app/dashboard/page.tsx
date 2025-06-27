@@ -75,28 +75,25 @@ export default function Dashboard() {
 
   const fetchAnalytics = async () => {
     try {
-      // Get user email from localStorage or URL params
-      const userEmail = localStorage.getItem('userEmail') || 
-                       new URLSearchParams(window.location.search).get('email') || 
-                       'algomind6@gmail.com';
+      // Use demo-user for testing (the account we upgraded to Basic plan)
+      const userEmail = 'demo-user';
       
-      console.log('Dashboard - Fetching analytics for:', userEmail);
+      console.log('Dashboard - Fetching REAL analytics for:', userEmail);
       
       const response = await fetch(`/api/analytics?email=${encodeURIComponent(userEmail)}`);
       if (response.ok) {
         const data = await response.json();
-        console.log('Dashboard - Analytics data received:', data);
+        console.log('Dashboard - REAL analytics data received:', data);
         setAnalyticsData(data);
       } else {
-        // Use mock data if API fails (for demo purposes)
-        console.log('Using mock data - API not available yet');
-        setAnalyticsData(mockData);
+        console.error('API response not OK:', response.status);
+        const errorData = await response.json();
+        console.error('API error:', errorData);
+        setError('Failed to load analytics data');
       }
     } catch (err) {
       console.error('Error fetching analytics:', err);
-      // Use mock data as fallback
-      setAnalyticsData(mockData);
-      setError('Using demo data - database not connected');
+      setError('Network error loading analytics');
     } finally {
       setLoading(false);
     }
@@ -173,7 +170,10 @@ export default function Dashboard() {
               <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded"></div>
               <span className="ml-2 text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">RFP Win Platform</span>
               <span className="ml-3 px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full capitalize">
-                {data.usage.planType === 'none' ? 'Free' : data.usage.planType} Plan
+                {data.usage.planType === 'basic' ? 'Basic ($49/month)' : 
+                 data.usage.planType === 'pro' ? 'Pro ($299/month)' : 
+                 data.usage.planType === 'enterprise' ? 'Enterprise ($799/month)' : 
+                 'Free'} Plan
               </span>
             </div>
             <div className="flex items-center space-x-4">
@@ -201,8 +201,8 @@ export default function Dashboard() {
 
         {/* Usage Tracking Section */}
         <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
-          {/* Upgrade Prompt for Free Users */}
-          {data.usage.planType === 'free' && (
+          {/* Plan Status Display */}
+          {data.usage.planType === 'free' ? (
             <div className="mb-6 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg p-4 border border-orange-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
@@ -227,6 +227,52 @@ export default function Dashboard() {
                 </button>
               </div>
             </div>
+          ) : data.usage.planType === 'basic' ? (
+            <div className="mb-6 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-4 border border-green-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Award className="h-6 w-6 text-green-600 mr-2" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-green-900">Basic Plan Active</h3>
+                    <p className="text-green-700">
+                      {data.usage.remaining.rfps} of {data.usage.rfpLimit} analyses remaining this month
+                    </p>
+                  </div>
+                </div>
+                {data.usage.remaining.rfps <= 5 && (
+                  <button 
+                    onClick={() => window.open('/#pricing', '_blank')}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                  >
+                    Upgrade to Pro
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : data.usage.planType === 'pro' ? (
+            <div className="mb-6 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-200">
+              <div className="flex items-center">
+                <Award className="h-6 w-6 text-purple-600 mr-2" />
+                <div>
+                  <h3 className="text-lg font-semibold text-purple-900">Professional Plan Active</h3>
+                  <p className="text-purple-700">
+                    {data.usage.remaining.rfps} of {data.usage.rfpLimit} analyses remaining this month
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : data.usage.planType === 'enterprise' && (
+            <div className="mb-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-4 border border-gray-200">
+              <div className="flex items-center">
+                <Building className="h-6 w-6 text-gray-600 mr-2" />
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Enterprise Plan Active</h3>
+                  <p className="text-gray-700">
+                    {data.usage.remaining.rfps} of {data.usage.rfpLimit} analyses remaining this month
+                  </p>
+                </div>
+              </div>
+            </div>
           )}
           
           <div className="flex items-center justify-between mb-4">
@@ -234,7 +280,10 @@ export default function Dashboard() {
               <BarChart3 className="h-6 w-6 text-blue-600 mr-2" />
               <h2 className="text-xl font-semibold text-gray-900">Monthly Usage</h2>
               <span className="ml-3 px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full capitalize">
-                {data.usage.planType === 'none' ? 'Free' : data.usage.planType} Plan
+                {data.usage.planType === 'basic' ? 'Basic Plan' : 
+                 data.usage.planType === 'pro' ? 'Pro Plan' : 
+                 data.usage.planType === 'enterprise' ? 'Enterprise Plan' : 
+                 'Free Plan'}
               </span>
             </div>
             <div className="text-sm text-gray-600">
