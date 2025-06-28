@@ -13,6 +13,36 @@ const nextConfig: NextConfig = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
+  // Enable experimental features
+  experimental: {
+    // Enable server actions
+    serverActions: {
+      bodySizeLimit: '10mb', // Increase body size limit for file uploads
+    },
+  },
+  // Configure API routes
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb', // Increase API body size limit
+    },
+  },
+  // Handle large file uploads
+  serverRuntimeConfig: {
+    maxFileSize: 10 * 1024 * 1024, // 10MB
+  },
+  // Add headers for CORS and file handling
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, DELETE, OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

@@ -13,11 +13,20 @@ export default function UploadPage() {
   const router = useRouter();
 
   const handleFileSelect = (selectedFile: File) => {
-    if (selectedFile.type === 'application/pdf') {
-      setFile(selectedFile);
-    } else {
+    // Check file type
+    if (!selectedFile.type.includes('pdf') && !selectedFile.name.toLowerCase().endsWith('.pdf')) {
       alert('Please upload a PDF file only');
+      return;
     }
+    
+    // Check file size (10MB limit)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (selectedFile.size > maxSize) {
+      alert(`File size (${(selectedFile.size / 1024 / 1024).toFixed(2)}MB) exceeds the maximum limit of 10MB. Please upload a smaller file.`);
+      return;
+    }
+    
+    setFile(selectedFile);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -40,29 +49,44 @@ export default function UploadPage() {
     setUsageError(null);
     
     try {
+      // Get user email from localStorage or use demo
+      const userEmail = localStorage.getItem('userEmail') || 'demo-user@example.com';
+      
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('userId', 'demo-user'); // In production, get from auth
+      formData.append('userId', userEmail);
       
       const response = await fetch('/api/extract', {
         method: 'POST',
         body: formData,
       });
       
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+      }
+      
       const result = await response.json();
       
       if (response.status === 429) {
         // Usage limit exceeded
         setUsageError(result);
+      } else if (response.status === 413) {
+        // File too large
+        setError(result.message || 'File too large. Please upload a smaller file.');
+      } else if (response.status === 422) {
+        // PDF processing failed
+        setError(result.message || 'Unable to process PDF. Please ensure the file is not corrupted.');
       } else if (result.success) {
         setAnalysisResults(result.analysis);
         setShowResults(true);
       } else {
-        setError(result.error || 'Failed to analyze RFP');
+        setError(result.message || result.error || 'Failed to analyze RFP');
       }
     } catch (err) {
-      setError('Network error occurred');
       console.error('Upload error:', err);
+      setError(`Network error: ${err instanceof Error ? err.message : 'Please try again'}`);
     } finally {
       setUploading(false);
     }
