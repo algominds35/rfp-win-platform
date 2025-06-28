@@ -241,14 +241,41 @@ export async function POST(request: NextRequest) {
     try {
       console.log('💾 Saving RFP to database...');
       
-      // Get customer ID first
-      const { data: customer } = await supabaseAdmin
+      // Get customer ID first, or create user if doesn't exist
+      let { data: customer } = await supabaseAdmin
         .from('customers')
         .select('id')
         .eq('email', userId)
         .single();
 
-      if (customer) {
+      if (!customer) {
+        // Auto-create user account if it doesn't exist
+        console.log('👤 Creating new user account for:', userId);
+        const { data: newCustomer, error: createError } = await supabaseAdmin
+          .from('customers')
+          .insert({
+            email: userId,
+            first_name: 'User',
+            last_name: 'Account',
+            company: 'Company',
+            plan: 'free',
+            usage_count: 0,
+            usage_limit: 3,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('❌ Failed to create user:', createError);
+        } else {
+          customer = newCustomer;
+          console.log('✅ User created successfully:', customer.id);
+        }
+      }
+
+      if (customer?.id) {
         // Save the RFP to database
         const { data: savedRfp, error: saveError } = await supabaseAdmin
           .from('rfps')

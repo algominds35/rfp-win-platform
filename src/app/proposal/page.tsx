@@ -24,6 +24,10 @@ function ProposalContent() {
   const [selectedRfpId, setSelectedRfpId] = useState<string>('');
 
   useEffect(() => {
+    // Clear any cached fake data
+    localStorage.removeItem('companyProfile');
+    localStorage.removeItem('demoData');
+    
     loadCompanyProfile();
     loadUserRfps();
   }, []);
