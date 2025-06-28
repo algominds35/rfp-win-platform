@@ -19,38 +19,69 @@ function ProposalContent() {
   const [companyProfile, setCompanyProfile] = useState<any>(null);
   const [rfpAnalysis, setRfpAnalysis] = useState<any>(null);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
+  const [customBudget, setCustomBudget] = useState('');
+  const [userRfps, setUserRfps] = useState<any[]>([]);
+  const [selectedRfpId, setSelectedRfpId] = useState<string>('');
 
   useEffect(() => {
     loadCompanyProfile();
-    // In real implementation, you'd also load the RFP analysis data
-    // For now, we'll use mock data
-    setRfpAnalysis({
-      title: "Cloud Infrastructure Migration Services",
-      client: "ABC Corporation",
-      requirements: [
-        'Technical specifications and system architecture',
-        'Project timeline with 18-month delivery schedule',
-        'Budget range: $500K - $750K maximum',
-        'Team must have 5+ years experience'
-      ],
-      evaluationCriteria: [
-        "Technical Approach (40%)",
-        "Cost & Value (30%)",
-        "Experience (20%)",
-        "Timeline (10%)"
-      ],
-      timeline: "12-18 months",
-      budgetRange: "$500K - $750K"
-    });
+    loadUserRfps();
   }, []);
+
+  const loadUserRfps = async () => {
+    try {
+      // Get current user email
+      const userEmail = localStorage.getItem('userEmail') || 'demo-user@example.com';
+      const response = await fetch(`/api/rfps?userId=${userEmail}`);
+      const data = await response.json();
+      if (data.success) {
+        setUserRfps(data.rfps);
+        // Auto-select the most recent RFP if available
+        if (data.rfps.length > 0) {
+          const mostRecent = data.rfps[0];
+          setSelectedRfpId(mostRecent.id);
+          setRfpAnalysis({
+            id: mostRecent.id,
+            title: mostRecent.title,
+            client: mostRecent.description,
+            requirements: mostRecent.requirements,
+            evaluationCriteria: mostRecent.evaluation_criteria,
+            timeline: mostRecent.deadline,
+            budgetRange: mostRecent.budget_range,
+            description: mostRecent.description
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load RFPs:', error);
+    }
+  };
 
   const loadCompanyProfile = async () => {
     try {
-      const response = await fetch('/api/company?id=default-company');
+      const userEmail = localStorage.getItem('userEmail') || 'demo-user@example.com';
+      const response = await fetch(`/api/company?id=company-${userEmail}`);
       const data = await response.json();
       setCompanyProfile(data.profile);
     } catch (error) {
       console.error('Failed to load company profile:', error);
+    }
+  };
+
+  const selectRfp = (rfpId: string) => {
+    const selectedRfp = userRfps.find(rfp => rfp.id === rfpId);
+    if (selectedRfp) {
+      setSelectedRfpId(rfpId);
+      setRfpAnalysis({
+        id: selectedRfp.id,
+        title: selectedRfp.title,
+        client: selectedRfp.description,
+        requirements: selectedRfp.requirements,
+        evaluationCriteria: selectedRfp.evaluation_criteria,
+        timeline: selectedRfp.deadline,
+        budgetRange: selectedRfp.budget_range,
+        description: selectedRfp.description
+      });
     }
   };
 
@@ -71,9 +102,12 @@ function ProposalContent() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          rfpAnalysis,
+          rfpAnalysis: {
+            ...rfpAnalysis,
+            budgetRange: customBudget || companyProfile?.budget_range || rfpAnalysis?.budgetRange // Use custom budget, then company budget, then RFP budget
+          },
           companyProfile,
-          userId: 'demo-user' // In production, get from auth
+          userId: localStorage.getItem('userEmail') || 'demo-user@example.com'
         }),
       });
 
@@ -460,21 +494,41 @@ function ProposalContent() {
             )}
           </div>
 
-          <div className={`p-6 rounded-lg border ${rfpAnalysis ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+          <div className={`p-6 rounded-lg border ${userRfps.length > 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
             <div className="flex items-center mb-2">
-              <div className={`h-3 w-3 rounded-full mr-3 ${rfpAnalysis ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              <h3 className="font-semibold">RFP Analysis</h3>
+              <div className={`h-3 w-3 rounded-full mr-3 ${userRfps.length > 0 ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <h3 className="font-semibold">RFP Selection</h3>
             </div>
-            {rfpAnalysis ? (
+            {userRfps.length > 0 ? (
               <div>
-                <p className="text-green-700 mb-2">✅ Analysis Complete</p>
-                <p className="text-sm text-gray-600">
-                  {rfpAnalysis.requirements?.length || 0} requirements • {rfpAnalysis.evaluationCriteria?.length || 0} criteria
-                </p>
+                <p className="text-green-700 mb-3">✅ {userRfps.length} RFP{userRfps.length > 1 ? 's' : ''} Available</p>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Choose RFP for proposal:
+                  </label>
+                  <select
+                    value={selectedRfpId}
+                    onChange={(e) => selectRfp(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  >
+                    <option value="">Select an RFP...</option>
+                    {userRfps.map((rfp) => (
+                      <option key={rfp.id} value={rfp.id}>
+                        {rfp.title} ({new Date(rfp.created_at).toLocaleDateString()})
+                      </option>
+                    ))}
+                  </select>
+                  {rfpAnalysis && (
+                    <p className="text-xs text-gray-600 mt-1">
+                      {rfpAnalysis.requirements?.length || 0} requirements • {rfpAnalysis.evaluationCriteria?.length || 0} criteria
+                    </p>
+                  )}
+                </div>
               </div>
             ) : (
               <div>
-                <p className="text-red-700 mb-2">❌ No RFP Analysis</p>
+                <p className="text-red-700 mb-2">❌ No RFP Analyses Found</p>
+                <p className="text-sm text-gray-600 mb-2">Upload and analyze an RFP first</p>
                 <Link href="/upload" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
                   Upload & analyze RFP →
                 </Link>
@@ -483,27 +537,98 @@ function ProposalContent() {
           </div>
         </div>
 
+        {/* Budget Input Section */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+          <div className="max-w-md mx-auto">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
+              💰 Set Your Budget
+            </h3>
+            <p className="text-sm text-gray-600 mb-4 text-center">
+              Specify your budget range for this proposal (optional - will use RFP analysis if left blank)
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="budget" className="block text-sm font-medium text-gray-700 mb-2">
+                  Budget Range
+                </label>
+                <input
+                  id="budget"
+                  type="text"
+                  value={customBudget}
+                  onChange={(e) => setCustomBudget(e.target.value)}
+                  placeholder="e.g., $50,000 - $100,000"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div className="text-xs text-gray-500">
+                <p className="mb-1"><strong>Examples:</strong></p>
+                <p>• $25,000 - $50,000</p>
+                <p>• $100K - $250K</p>
+                <p>• Up to $500,000</p>
+                <p>• $1M - $2.5M</p>
+              </div>
+              
+              {companyProfile?.budget_range && (
+                <div className="bg-green-50 p-3 rounded-lg">
+                  <p className="text-sm text-green-800">
+                    <strong>Company Default Budget:</strong> {companyProfile.budget_range}
+                  </p>
+                  <p className="text-xs text-green-600 mt-1">
+                    From your company profile - leave blank to use this, or enter a different budget above
+                  </p>
+                </div>
+              )}
+              
+              {rfpAnalysis?.budgetRange && !companyProfile?.budget_range && (
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>RFP Analysis Budget:</strong> {rfpAnalysis.budgetRange}
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Leave blank to use this, or enter your preferred budget above
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Generate Button */}
         <div className="text-center">
           <button
             onClick={generateProposal}
-            disabled={generating || !companyProfile || !companyProfile.name || !rfpAnalysis}
+            disabled={generating || !companyProfile || !companyProfile.name || !rfpAnalysis || !selectedRfpId}
             className="bg-blue-600 text-white px-12 py-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center mx-auto"
           >
             {generating ? (
               <>
                 <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                🤖 AI is crafting your winning proposal...
+                🤖 AI is crafting your winning proposal with your budget...
               </>
             ) : (
-              '🚀 Generate Winning Proposal'
+              customBudget ? '🚀 Generate Proposal with Custom Budget' : '🚀 Generate Winning Proposal'
             )}
           </button>
           
-          {(!companyProfile || !companyProfile.name || !rfpAnalysis) && (
+          {(!companyProfile || !companyProfile.name || !rfpAnalysis || !selectedRfpId) && (
             <p className="text-sm text-gray-500 mt-2">
-              Complete your company profile and RFP analysis to generate proposal
+              Complete your company profile and select an RFP to generate proposal
             </p>
+          )}
+          
+          {(customBudget || companyProfile?.budget_range) && (
+            <div className="mt-4 max-w-md mx-auto">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <p className="text-sm text-green-800 text-center">
+                  ✅ <strong>Budget Set:</strong> {customBudget || companyProfile?.budget_range}
+                </p>
+                <p className="text-xs text-green-600 text-center mt-1">
+                  {customBudget ? 'Custom budget for this proposal' : 'Using your company default budget'}
+                </p>
+              </div>
+            </div>
           )}
         </div>
       </div>

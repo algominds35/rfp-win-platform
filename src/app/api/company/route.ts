@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// Simple in-memory storage for MVP - replace with database later
-let companyProfiles: Record<string, any> = {};
+import { supabaseAdmin } from '@/lib/supabase';
+import { AuthService } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,19 +11,51 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Company name and capabilities are required' }, { status: 400 });
     }
 
-    // Generate simple ID (use proper auth user ID in production)
-    const profileId = profile.id || 'default-company';
+    // Get user email from profile ID or use authenticated user
+    const userEmail = profile.id?.replace('company-', '') || 'demo-user@example.com';
     
-    // Save profile
-    companyProfiles[profileId] = {
-      ...profile,
-      id: profileId,
-      updated_at: new Date().toISOString()
-    };
+    // Get customer ID
+    const { data: customer } = await supabaseAdmin
+      .from('customers')
+      .select('id')
+      .eq('email', userEmail)
+      .single();
+
+    if (!customer) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Save or update company profile in database
+    const { data: savedProfile, error } = await supabaseAdmin
+      .from('company_profiles')
+      .upsert({
+        customer_id: customer.id,
+        name: profile.name,
+        capabilities: profile.capabilities,
+        team_size: profile.team_size || 0,
+        budget_range: profile.budget_range || '',
+        contact_info: profile.contact_info || {},
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Database save error:', error);
+      return NextResponse.json({ error: 'Failed to save profile' }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,
-      profile: companyProfiles[profileId]
+      profile: {
+        id: `company-${userEmail}`,
+        name: savedProfile.name,
+        capabilities: savedProfile.capabilities,
+        team_size: savedProfile.team_size,
+        budget_range: savedProfile.budget_range,
+        contact_info: savedProfile.contact_info,
+        updated_at: savedProfile.updated_at
+      }
     });
 
   } catch (error) {
@@ -41,8 +72,38 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const profileId = searchParams.get('id') || 'default-company';
     
-    const profile = companyProfiles[profileId];
+    // Extract user email from profile ID
+    const userEmail = profileId.replace('company-', '') || 'demo-user@example.com';
     
+    // Get customer ID
+    const { data: customer } = await supabaseAdmin
+      .from('customers')
+      .select('id')
+      .eq('email', userEmail)
+      .single();
+
+    if (!customer) {
+      // Return default empty profile structure for new users
+      return NextResponse.json({
+        profile: {
+          id: profileId,
+          name: '',
+          capabilities: [],
+          team_size: 0,
+          budget_range: '',
+          contact_info: {},
+          created_at: new Date().toISOString()
+        }
+      });
+    }
+
+    // Get company profile from database
+    const { data: profile } = await supabaseAdmin
+      .from('company_profiles')
+      .select('*')
+      .eq('customer_id', customer.id)
+      .single();
+
     if (!profile) {
       // Return default empty profile structure
       return NextResponse.json({
@@ -50,9 +111,8 @@ export async function GET(request: NextRequest) {
           id: profileId,
           name: '',
           capabilities: [],
-          past_projects: [],
           team_size: 0,
-          certifications: [],
+          budget_range: '',
           contact_info: {},
           created_at: new Date().toISOString()
         }
@@ -61,7 +121,16 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      profile: profile
+      profile: {
+        id: profileId,
+        name: profile.name,
+        capabilities: profile.capabilities,
+        team_size: profile.team_size,
+        budget_range: profile.budget_range,
+        contact_info: profile.contact_info,
+        created_at: profile.created_at,
+        updated_at: profile.updated_at
+      }
     });
 
   } catch (error) {

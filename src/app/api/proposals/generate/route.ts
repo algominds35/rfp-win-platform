@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { openai } from '@/lib/openai';
+import { generateProposal, analyzeRFPCompetitiveness } from '@/lib/openai';
 import { AnalyticsService } from '@/lib/analytics';
 import { supabaseAdmin } from '@/lib/supabase';
 
@@ -74,70 +74,14 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    // Generate enterprise-grade proposal using OpenAI
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        {
-          role: "system",
-          content: `You are a world-class proposal writer who creates winning RFP responses for enterprise clients. Your proposals have generated over $100M in won business. 
+    // Generate enterprise-grade proposal using enhanced OpenAI function
+    const proposalResult = await generateProposal(
+      parsedAnalysis.rawAnalysis || '',
+      parsedAnalysis.requirements || [],
+      companyProfile
+    );
 
-CRITICAL REQUIREMENTS:
-- Use ONLY the data provided from the RFP analysis
-- Match the exact timeline and budget from the analysis
-- Address every requirement and evaluation criteria specifically
-- Create proposals that sound like they're from a $10M+ company
-- Use the company profile information provided
-- NO placeholder text or generic content
-- Professional, confident, and compelling tone
-- Include specific technical approaches and methodologies
-- Demonstrate deep understanding of the client's needs
-
-Format as a complete, professional proposal document ready for immediate submission.`
-        },
-        {
-          role: "user",
-          content: `Create a winning proposal based on this RFP analysis:
-
-REQUIREMENTS IDENTIFIED:
-${parsedAnalysis.requirements?.join('\n• ') || 'Modern web application development'}
-
-EVALUATION CRITERIA:
-${parsedAnalysis.evaluationCriteria?.join('\n• ') || 'Technical expertise, timeline, cost effectiveness'}
-
-TIMELINE: ${parsedAnalysis.timeline}
-BUDGET: ${parsedAnalysis.budgetRange}
-
-STRATEGY RECOMMENDATIONS:
-${parsedAnalysis.strategy}
-
-RISK FACTORS TO ADDRESS:
-${parsedAnalysis.risks}
-
-COMPANY PROFILE:
-Company: ${companyProfile.name || 'Our Company'}
-Team Size: ${companyProfile.teamSize || '15+ experts'}
-Capabilities: ${companyProfile.coreCapabilities?.join(', ') || 'Full-stack development, cloud architecture, AI/ML'}
-Contact: ${companyProfile.contactEmail || 'contact@company.com'}
-
-Create a professional proposal with these sections:
-1. EXECUTIVE SUMMARY - Compelling overview that addresses the client's main pain points
-2. UNDERSTANDING OF REQUIREMENTS - Demonstrate deep comprehension of their needs
-3. TECHNICAL APPROACH - Detailed methodology that addresses each requirement
-4. PROJECT TIMELINE - Realistic milestones that match their requested timeline
-5. TEAM QUALIFICATIONS - Relevant experience and expertise
-6. PRICING STRATEGY - Competitive pricing within their budget range with clear justification
-7. RISK MANAGEMENT - Address the specific risks identified in the analysis
-8. VALUE PROPOSITION - Unique benefits and ROI they'll receive
-
-CRITICAL: Use the EXACT timeline (${parsedAnalysis.timeline}) and budget range (${parsedAnalysis.budgetRange}) from the analysis. Address each requirement specifically. Make it sound like it's from an established, successful company.`
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 4000
-    });
-
-    const proposalContent = completion.choices[0]?.message?.content;
+    const proposalContent = proposalResult.content;
     
     if (!proposalContent) {
       throw new Error('No proposal content generated');
@@ -157,7 +101,7 @@ CRITICAL: Use the EXACT timeline (${parsedAnalysis.timeline}) and budget range (
           client_name: parsedAnalysis.client || 'Prospective Client',
           status: 'draft',
           estimated_value: parsedAnalysis.budgetRange || '$50,000 - $75,000',
-          win_probability: 85, // High probability based on analysis
+          win_probability: proposalResult.win_probability || 85,
           timeline: parsedAnalysis.timeline || '6 months',
           requirements: parsedAnalysis.requirements || [],
           created_at: new Date().toISOString()
@@ -199,6 +143,12 @@ CRITICAL: Use the EXACT timeline (${parsedAnalysis.timeline}) and budget range (
         client: parsedAnalysis.client || 'Prospective Client',
         budget: parsedAnalysis.budgetRange,
         timeline: parsedAnalysis.timeline,
+        executive_summary: proposalResult.executive_summary,
+        compliance_score: proposalResult.compliance_score,
+        win_probability: proposalResult.win_probability,
+        key_differentiators: proposalResult.key_differentiators,
+        risk_factors: proposalResult.risk_factors,
+        compliance_matrix: proposalResult.compliance_matrix,
         generatedAt: new Date().toISOString()
       },
       usage: updatedUsage

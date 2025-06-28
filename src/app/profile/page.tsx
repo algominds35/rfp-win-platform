@@ -8,10 +8,11 @@ export default function CompanyProfilePage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [profile, setProfile] = useState({
-    id: 'default-company',
+    id: '',
     name: '',
     capabilities: [] as string[],
     team_size: 0,
+    budget_range: '',
     contact_info: {
       website: '',
       email: '',
@@ -20,6 +21,29 @@ export default function CompanyProfilePage() {
   });
   
   const [newCapability, setNewCapability] = useState('');
+
+  useEffect(() => {
+    loadExistingProfile();
+  }, []);
+
+  const loadExistingProfile = async () => {
+    try {
+      const userEmail = localStorage.getItem('userEmail') || 'demo-user@example.com';
+      const profileId = `company-${userEmail}`;
+      const response = await fetch(`/api/company?id=${profileId}`);
+      const data = await response.json();
+      if (data.profile) {
+        setProfile({
+          ...data.profile,
+          id: profileId
+        });
+      } else {
+        setProfile(prev => ({ ...prev, id: profileId }));
+      }
+    } catch (error) {
+      console.error('Failed to load existing profile:', error);
+    }
+  };
 
   const saveProfile = async () => {
     setSaving(true);
@@ -127,6 +151,22 @@ export default function CompanyProfilePage() {
                   placeholder="Number of employees"
                 />
               </div>
+            </div>
+            
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                💰 Preferred Budget Range
+              </label>
+              <input
+                type="text"
+                value={profile.budget_range}
+                onChange={(e) => setProfile({ ...profile, budget_range: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g., $50,000 - $150,000"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                This will be used as your default budget range in all proposals. Examples: "$25K - $75K", "$100,000 - $250,000", "Up to $500K"
+              </p>
             </div>
           </div>
 

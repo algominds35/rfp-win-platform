@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { AuthService } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,61 +40,23 @@ export async function POST(request: NextRequest) {
 
     const analysesLimit = planLimits[plan as keyof typeof planLimits] || 3;
 
-    // Check if user already exists
-    const { data: existingUser } = await supabase
-      .from('customers')
-      .select('email')
-      .eq('email', email)
-      .single();
+    // Use AuthService to register user
+    const result = await AuthService.register(email, password, firstName);
 
-    if (existingUser) {
+    if (!result.success) {
       return NextResponse.json(
-        { success: false, error: 'User already exists with this email' },
+        { success: false, error: result.error },
         { status: 400 }
       );
     }
 
-    // SIMPLIFIED: Just create customer record directly (skip complex auth)
-    const { data: customer, error: customerError } = await supabase
-      .from('customers')
-      .insert({
-        email: email,
-        first_name: firstName,
-        last_name: lastName,
-        company: company,
-        plan_type: plan || 'free',
-        analyses_limit: analysesLimit,
-        analyses_used: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (customerError) {
-      console.error('Customer creation error:', customerError);
-      return NextResponse.json(
-        { success: false, error: 'Failed to create customer record' },
-        { status: 500 }
-      );
-    }
-
     // Log the signup event
-    console.log(`New ${plan} signup: ${email} - ${firstName} ${lastName} (${company})`);
+    console.log(`New ${plan || 'free'} signup: ${email} - ${firstName} ${lastName} (${company})`);
 
     return NextResponse.json({
       success: true,
       message: 'Account created successfully',
-      user: {
-        id: customer.id,
-        email: customer.email,
-        firstName: customer.first_name,
-        lastName: customer.last_name,
-        company: customer.company,
-        plan: customer.plan_type,
-        analysesLimit: customer.analyses_limit,
-        analysesUsed: customer.analyses_used
-      }
+      user: result.user
     });
 
   } catch (error) {

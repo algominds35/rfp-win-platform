@@ -20,12 +20,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '10mb', // Increase body size limit for file uploads
     },
   },
-  // Configure API routes
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb', // Increase API body size limit
-    },
-  },
+
   // Handle large file uploads
   serverRuntimeConfig: {
     maxFileSize: 10 * 1024 * 1024, // 10MB
