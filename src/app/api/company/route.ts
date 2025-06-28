@@ -83,15 +83,26 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (!customer) {
-      // Return default empty profile structure for new users
+      // Return default PRE-FILLED profile for new users
       return NextResponse.json({
         profile: {
           id: profileId,
-          name: '',
-          capabilities: [],
-          team_size: 0,
-          budget_range: '',
-          contact_info: {},
+          name: 'Professional Services Company',
+          capabilities: [
+            'Software Development',
+            'Web Applications',
+            'Database Design',
+            'System Integration',
+            'Project Management',
+            'Technical Consulting'
+          ],
+          team_size: 15,
+          budget_range: '$50,000 - $150,000',
+          contact_info: {
+            website: 'www.company.com',
+            email: userEmail,
+            phone: '+1 (555) 123-4567'
+          },
           created_at: new Date().toISOString()
         }
       });
@@ -105,16 +116,46 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (!profile) {
-      // Return default empty profile structure
+      // Return default PRE-FILLED profile and auto-save it
+      const defaultProfile = {
+        customer_id: customer.id,
+        name: 'Professional Services Company',
+        capabilities: [
+          'Software Development',
+          'Web Applications', 
+          'Database Design',
+          'System Integration',
+          'Project Management',
+          'Technical Consulting'
+        ],
+        team_size: 15,
+        budget_range: '$50,000 - $150,000',
+        contact_info: {
+          website: 'www.company.com',
+          email: userEmail,
+          phone: '+1 (555) 123-4567'
+        },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      // Auto-save the default profile
+      const { data: savedProfile } = await supabaseAdmin
+        .from('company_profiles')
+        .insert(defaultProfile)
+        .select()
+        .single();
+
       return NextResponse.json({
         profile: {
           id: profileId,
-          name: '',
-          capabilities: [],
-          team_size: 0,
-          budget_range: '',
-          contact_info: {},
-          created_at: new Date().toISOString()
+          name: defaultProfile.name,
+          capabilities: defaultProfile.capabilities,
+          team_size: defaultProfile.team_size,
+          budget_range: defaultProfile.budget_range,
+          contact_info: defaultProfile.contact_info,
+          created_at: defaultProfile.created_at,
+          updated_at: defaultProfile.updated_at
         }
       });
     }
