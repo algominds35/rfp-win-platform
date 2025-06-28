@@ -50,7 +50,15 @@ export default function UploadPage() {
     
     try {
       // Get user email from localStorage or use demo
-      const userEmail = localStorage.getItem('userEmail') || 'demo-user@example.com';
+      const userEmail = localStorage.getItem('userEmail') || 'demo@rfpwin.com';
+      
+      // Set demo user email if not set
+      if (!localStorage.getItem('userEmail')) {
+        localStorage.setItem('userEmail', 'demo@rfpwin.com');
+        localStorage.setItem('userName', 'Demo User');
+        localStorage.setItem('userPlan', 'professional');
+        localStorage.setItem('demoMode', 'true');
+      }
       
       const formData = new FormData();
       formData.append('file', file);

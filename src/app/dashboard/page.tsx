@@ -23,47 +23,21 @@ export default function Dashboard() {
 
   const setupDemoAndLoadStats = async () => {
     try {
-      // Setup demo user first
-      const setupResponse = await fetch('/api/demo-setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+      // Skip API calls - just set up demo data in localStorage
+      localStorage.setItem('userEmail', 'demo@rfpwin.com');
+      localStorage.setItem('userName', 'Demo User');
+      localStorage.setItem('userPlan', 'professional');
+      localStorage.setItem('demoMode', 'true');
+
+      // Set demo stats without API call
+      setStats({
+        usage: 0,
+        limit: 250,
+        plan: 'professional',
+        rfpsAnalyzed: 0,
+        proposalsGenerated: 0,
+        winRate: 0
       });
-
-      if (setupResponse.ok) {
-        const setupData = await setupResponse.json();
-        
-        // Store demo user info
-        localStorage.setItem('userEmail', setupData.user.email);
-        localStorage.setItem('userName', setupData.user.name);
-        localStorage.setItem('userPlan', setupData.user.plan);
-        localStorage.setItem('demoMode', 'true');
-      }
-
-      // Load user stats
-      const userEmail = localStorage.getItem('userEmail') || 'demo@rfpwin.com';
-      const response = await fetch(`/api/analytics?userId=${userEmail}`);
-      const data = await response.json();
-
-      if (data.success) {
-        setStats({
-          usage: data.usage.current,
-          limit: data.usage.limit,
-          plan: data.usage.planType,
-          rfpsAnalyzed: data.analytics.rfpsAnalyzed || 0,
-          proposalsGenerated: data.analytics.proposalsGenerated || 0,
-          winRate: data.analytics.winRate || 0
-        });
-      } else {
-        // Fallback demo stats
-        setStats({
-          usage: 0,
-          limit: 250,
-          plan: 'professional',
-          rfpsAnalyzed: 0,
-          proposalsGenerated: 0,
-          winRate: 0
-        });
-      }
     } catch (error) {
       console.error('Setup error:', error);
       // Fallback demo stats

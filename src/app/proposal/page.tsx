@@ -24,6 +24,14 @@ function ProposalContent() {
   const [selectedRfpId, setSelectedRfpId] = useState<string>('');
 
   useEffect(() => {
+    // Set demo user if not set
+    if (!localStorage.getItem('userEmail')) {
+      localStorage.setItem('userEmail', 'demo@rfpwin.com');
+      localStorage.setItem('userName', 'Demo User');
+      localStorage.setItem('userPlan', 'professional');
+      localStorage.setItem('demoMode', 'true');
+    }
+    
     // Clear any cached fake data
     localStorage.removeItem('companyProfile');
     localStorage.removeItem('demoData');
