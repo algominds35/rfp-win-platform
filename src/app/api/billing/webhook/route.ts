@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
         const customerEmail = session.customer_details?.email;
         
         console.log('🎉 Payment completed for:', customerEmail);
-        
+
         if (customerEmail && session.subscription) {
           // Get subscription details
           const subscription = await stripe.subscriptions.retrieve(
@@ -75,8 +75,8 @@ export async function POST(request: NextRequest) {
               plan_type: plan,
               analyses_limit: analysesLimit,
               analyses_used: 0,
-              stripe_customer_id: session.customer as string,
-              stripe_subscription_id: subscription.id,
+            stripe_customer_id: session.customer as string,
+            stripe_subscription_id: subscription.id,
               subscription_status: 'active',
               current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
               current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
@@ -134,14 +134,14 @@ export async function POST(request: NextRequest) {
         if (customer) {
           await supabaseAdmin
             .from('customers')
-            .update({
+          .update({
               plan_type: 'free',
               analyses_limit: 3,
               subscription_status: 'canceled',
               stripe_subscription_id: null,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('stripe_subscription_id', subscription.id);
+            updated_at: new Date().toISOString(),
+          })
+          .eq('stripe_subscription_id', subscription.id);
 
           console.log(`✅ Downgraded ${customer.email} to free plan`);
         }

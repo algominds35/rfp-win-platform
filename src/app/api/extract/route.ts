@@ -241,11 +241,11 @@ export async function POST(request: NextRequest) {
     // Log the successful usage - CRITICAL FOR TRACKING
     console.log('📝 About to log usage for:', userId);
     try {
-      await AnalyticsService.logUsage(userId, 'rfp_analysis', {
-        fileName: file.name,
-        fileSize: file.size,
-        extractedLength: extractedText.length
-      });
+    await AnalyticsService.logUsage(userId, 'rfp_analysis', {
+      fileName: file.name,
+      fileSize: file.size,
+      extractedLength: extractedText.length
+    });
       console.log('✅ Usage logged successfully');
     } catch (usageError) {
       console.error('❌ CRITICAL: Failed to log usage:', usageError);

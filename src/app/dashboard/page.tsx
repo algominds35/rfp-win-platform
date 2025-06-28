@@ -4,21 +4,33 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface RFP {
-  id: number;
+  id: string;
   title: string;
   client_name: string;
   value: string;
   status: string;
   created_at: string;
-  analysis_data: any;
+  win_probability?: number;
 }
 
 interface Proposal {
-  id: number;
+  id: string;
   title: string;
-  rfp_id: number;
+  rfp_id: string;
   status: string;
   created_at: string;
+  client_name?: string;
+  estimated_value?: number;
+}
+
+interface Analytics {
+  totalRfps: number;
+  winRate: number;
+  pipelineValue: number;
+  avgResponseTime: number;
+  rfpsThisMonth: number;
+  proposalsGenerated: number;
+  activeProposals: number;
 }
 
 export default function Dashboard() {
@@ -26,7 +38,16 @@ export default function Dashboard() {
   const [rfps, setRfps] = useState<RFP[]>([]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [usage, setUsage] = useState({ rfpsUsed: 0, rfpLimit: 25, planType: 'basic' });
+  const [usage, setUsage] = useState({ rfpsUsed: 0, rfpLimit: 3, planType: 'free' });
+  const [analytics, setAnalytics] = useState<Analytics>({
+    totalRfps: 0,
+    winRate: 0,
+    pipelineValue: 0,
+    avgResponseTime: 0,
+    rfpsThisMonth: 0,
+    proposalsGenerated: 0,
+    activeProposals: 0
+  });
 
   useEffect(() => {
     loadDashboardData();
@@ -34,51 +55,66 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     try {
-      // Load user analytics/usage
-      const analyticsRes = await fetch('/api/analytics');
+      // Get user email from localStorage or session
+      const userEmail = localStorage.getItem('userEmail') || 'demo-user@example.com';
+      
+      // Load REAL analytics data from API
+      const analyticsRes = await fetch(`/api/analytics?email=${encodeURIComponent(userEmail)}`);
       if (analyticsRes.ok) {
-        const analyticsData = await analyticsRes.json();
-        setUsage(analyticsData.usage || { rfpsUsed: 0, rfpLimit: 25, planType: 'basic' });
+        const data = await analyticsRes.json();
+        
+        // Set REAL usage data
+        setUsage(data.usage || { rfpsUsed: 0, rfpLimit: 3, planType: 'free' });
+        
+        // Set REAL analytics
+        setAnalytics(data.analytics || {
+          totalRfps: 0,
+          winRate: 0,
+          pipelineValue: 0,
+          avgResponseTime: 0,
+          rfpsThisMonth: 0,
+          proposalsGenerated: 0,
+          activeProposals: 0
+        });
+
+        // Convert pipeline data to RFP format
+        const pipelineData = data.pipeline || [];
+        const rfpData: RFP[] = pipelineData.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          client_name: item.client,
+          value: item.value,
+          status: item.status,
+          created_at: item.date,
+          win_probability: item.winProbability
+        }));
+        
+        setRfps(rfpData);
+
+        // Convert pipeline to proposals (proposals are generated from RFPs)
+        const proposalData: Proposal[] = pipelineData
+          .filter((item: any) => ['submitted', 'won', 'in_progress', 'draft'].includes(item.status))
+          .map((item: any) => ({
+            id: item.id,
+            title: `Proposal: ${item.title}`,
+            rfp_id: item.id,
+            status: item.status,
+            created_at: item.date,
+            client_name: item.client,
+            estimated_value: parseFloat(item.value.replace(/[$,]/g, '')) || 0
+          }));
+          
+        setProposals(proposalData);
+
+        console.log('Dashboard loaded REAL data:', {
+          rfps: rfpData.length,
+          proposals: proposalData.length,
+          usage: data.usage,
+          analytics: data.analytics
+        });
+      } else {
+        console.error('Failed to load analytics:', analyticsRes.status);
       }
-
-      // For now, we'll show sample data since we know there are RFPs in the database
-      setRfps([
-        {
-          id: 1,
-          title: "Cloud Infrastructure Migration",
-          client_name: "TechCorp Inc.",
-          value: "$150,000",
-          status: "analyzed",
-          created_at: "2025-01-25",
-          analysis_data: {}
-        },
-        {
-          id: 2,
-          title: "AI Analytics Platform",
-          client_name: "DataFlow LLC",
-          value: "$85,000", 
-          status: "analyzed",
-          created_at: "2025-01-25",
-          analysis_data: {}
-        }
-      ]);
-
-      setProposals([
-        {
-          id: 1,
-          title: "Cloud Migration Proposal",
-          rfp_id: 1,
-          status: "draft",
-          created_at: "2025-01-25"
-        },
-        {
-          id: 2,
-          title: "AI Analytics Proposal", 
-          rfp_id: 2,
-          status: "submitted",
-          created_at: "2025-01-25"
-        }
-      ]);
 
     } catch (error) {
       console.error('Error loading dashboard:', error);
@@ -89,12 +125,18 @@ export default function Dashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'analyzed': return 'bg-green-100 text-green-800';
-      case 'draft': return 'bg-yellow-100 text-yellow-800';
-      case 'submitted': return 'bg-blue-100 text-blue-800';
-      case 'won': return 'bg-green-100 text-green-800';
-      case 'lost': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'analyzed': 
+      case 'won': 
+        return 'bg-green-100 text-green-800';
+      case 'draft': 
+        return 'bg-yellow-100 text-yellow-800';
+      case 'submitted': 
+      case 'in_progress':
+        return 'bg-blue-100 text-blue-800';
+      case 'lost': 
+        return 'bg-red-100 text-red-800';
+      default: 
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -117,7 +159,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">RFP Win Platform</h1>
-              <p className="text-gray-600">Manage your RFPs and winning proposals</p>
+              <p className="text-gray-600">AI-powered RFP analysis and proposal generation</p>
             </div>
             <div className="flex items-center space-x-4">
               <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
@@ -135,8 +177,67 @@ export default function Dashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Analytics Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-sm border p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-2xl font-bold text-gray-900">{analytics.totalRfps}</p>
+                <p className="text-gray-600 text-sm">Total RFPs</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-2xl font-bold text-gray-900">{analytics.winRate}%</p>
+                <p className="text-gray-600 text-sm">Win Rate</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-2xl font-bold text-gray-900">${analytics.pipelineValue.toLocaleString()}</p>
+                <p className="text-gray-600 text-sm">Pipeline Value</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-2xl font-bold text-gray-900">{analytics.avgResponseTime}d</p>
+                <p className="text-gray-600 text-sm">Avg Response</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Action Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div 
             onClick={() => router.push('/upload')}
             className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-6 text-white cursor-pointer hover:shadow-lg transition-shadow"
@@ -147,33 +248,16 @@ export default function Dashboard() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold ml-3">Start New</h3>
+              <h3 className="text-lg font-semibold ml-3">Analyze RFP</h3>
             </div>
-            <h2 className="text-xl font-bold mb-2">RFP Analysis</h2>
-            <p className="text-blue-100 mb-2">Upload and analyze new RFP documents with AI-powered insights</p>
-            <p className="text-sm text-blue-200">{usage.rfpLimit - usage.rfpsUsed} RFPs remaining</p>
-          </div>
-
-          <div 
-            onClick={() => router.push('/profile')}
-            className="bg-gradient-to-r from-green-500 to-teal-600 rounded-xl p-6 text-white cursor-pointer hover:shadow-lg transition-shadow"
-          >
-            <div className="flex items-center mb-4">
-              <div className="p-2 bg-white/20 rounded-lg">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold ml-3">Optimize</h3>
-            </div>
-            <h2 className="text-xl font-bold mb-2">Company Profile</h2>
-            <p className="text-green-100 mb-2">Enhance your capabilities and improve proposal quality</p>
-            <p className="text-sm text-green-200">Enhance your capabilities and improve proposal quality</p>
+            <h2 className="text-xl font-bold mb-2">Upload & Analyze</h2>
+            <p className="text-blue-100 mb-2">Upload RFP documents and get AI-powered analysis</p>
+            <p className="text-sm text-blue-200">{usage.rfpLimit - usage.rfpsUsed} analyses remaining</p>
           </div>
 
           <div 
             onClick={() => router.push('/proposal')}
-            className="bg-gradient-to-r from-red-500 to-pink-600 rounded-xl p-6 text-white cursor-pointer hover:shadow-lg transition-shadow"
+            className="bg-gradient-to-r from-green-500 to-teal-600 rounded-xl p-6 text-white cursor-pointer hover:shadow-lg transition-shadow"
           >
             <div className="flex items-center mb-4">
               <div className="p-2 bg-white/20 rounded-lg">
@@ -181,20 +265,20 @@ export default function Dashboard() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold ml-3">Create</h3>
+              <h3 className="text-lg font-semibold ml-3">Generate Proposal</h3>
             </div>
-            <h2 className="text-xl font-bold mb-2">Winning Proposal</h2>
-            <p className="text-red-100 mb-2">Generate professional proposals that win more business</p>
-            <p className="text-sm text-red-200">{proposals.length} proposals remaining</p>
+            <h2 className="text-xl font-bold mb-2">Create Winning Proposals</h2>
+            <p className="text-green-100 mb-2">Generate professional proposals from analyzed RFPs</p>
+            <p className="text-sm text-green-200">{analytics.activeProposals} active proposals</p>
           </div>
         </div>
-
+              
         {/* RFP Pipeline */}
         <div className="bg-white rounded-xl shadow-sm border mb-8">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Active RFP Pipeline</h2>
-              <p className="text-gray-600 text-sm">Track and manage your RFP analyses</p>
+              <p className="text-gray-600 text-sm">Track and manage your RFP analyses and proposals</p>
             </div>
             <div className="flex space-x-2">
               <button className="px-3 py-1 text-sm border rounded-lg hover:bg-gray-50">Filter</button>
@@ -223,7 +307,7 @@ export default function Dashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rfp.client_name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rfp.value}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">High (85%)</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rfp.win_probability || 75}%</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(rfp.status)}`}>
                           {rfp.status}
@@ -241,7 +325,7 @@ export default function Dashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <h3 className="mt-2 text-sm font-medium text-gray-900">No RFPs yet</h3>
-              <p className="mt-1 text-sm text-gray-500">Upload your first RFP to get started!</p>
+              <p className="mt-1 text-sm text-gray-500">Upload your first RFP to get started with AI-powered analysis!</p>
               <div className="mt-6">
                 <button
                   onClick={() => router.push('/upload')}
@@ -268,7 +352,10 @@ export default function Dashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-sm font-medium text-gray-900">{proposal.title}</h3>
-                      <p className="text-sm text-gray-500">Created {proposal.created_at}</p>
+                      <p className="text-sm text-gray-500">
+                        {proposal.client_name} • Created {proposal.created_at} • 
+                        {proposal.estimated_value ? ` $${proposal.estimated_value.toLocaleString()}` : ''}
+                      </p>
                     </div>
                     <div className="flex items-center space-x-4">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(proposal.status)}`}>

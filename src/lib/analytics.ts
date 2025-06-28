@@ -242,7 +242,7 @@ export class AnalyticsService {
     }
   }
 
-  // Get user analytics for dashboard - REAL DATA FROM DATABASE
+  // Get user analytics for dashboard - REAL DATA ONLY (NO DEMO DATA)
   static async getUserAnalytics(userId: string): Promise<UserAnalytics> {
     try {
       // Get customer data first
@@ -267,27 +267,27 @@ export class AnalyticsService {
 
       const customerId = customer.id;
 
-      // Get REAL RFP data from database (search by email since customer_id contains emails)
+      // Get REAL RFP data from database - using customer.id (BIGINT)
       const { data: rfps, error: rfpError } = await supabaseAdmin
         .from('rfps')
         .select('*')
-        .eq('customer_id', userId); // Use email directly since that's what's stored
+        .eq('customer_id', customerId); // Use customer.id (BIGINT) not email
 
       if (rfpError) {
         console.error('Error fetching RFPs:', rfpError);
       }
 
-      // Get REAL proposal data from database (search by email since customer_id contains emails)
+      // Get REAL proposal data from database - using customer.id (BIGINT)
       const { data: proposals, error: proposalError } = await supabaseAdmin
         .from('proposals')
         .select('*')
-        .eq('customer_id', userId); // Use email directly since that's what's stored
+        .eq('customer_id', customerId); // Use customer.id (BIGINT) not email
 
       if (proposalError) {
         console.error('Error fetching proposals:', proposalError);
       }
 
-      // Calculate REAL analytics from actual data
+      // Calculate REAL analytics from actual data (will be 0 for new users)
       const totalRfps = rfps?.length || 0;
       const totalProposals = proposals?.length || 0;
       const wonProposals = proposals?.filter(p => p.status === 'won').length || 0;
@@ -364,7 +364,7 @@ export class AnalyticsService {
     }
   }
 
-  // Get RFP pipeline data - REAL DATA FROM DATABASE
+  // Get RFP pipeline data - REAL DATA ONLY (NO DEMO DATA)
   static async getRfpPipeline(userId: string): Promise<RfpPipelineItem[]> {
     try {
       // Get customer data first
@@ -381,11 +381,11 @@ export class AnalyticsService {
 
       const customerId = customer.id;
 
-      // Get REAL proposals - NO JOIN to avoid relationship errors (search by email)
+      // Get REAL proposals - using customer.id (BIGINT)
       const { data: proposals, error: proposalError } = await supabaseAdmin
         .from('proposals')
         .select('*')
-        .eq('customer_id', userId) // Use email directly since that's what's stored
+        .eq('customer_id', customerId) // Use customer.id (BIGINT) not email
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -394,13 +394,13 @@ export class AnalyticsService {
         return [];
       }
 
-      // Get RFPs separately if needed (search by email)
+      // Get RFPs separately - using customer.id (BIGINT)
       const { data: rfps } = await supabaseAdmin
         .from('rfps')
         .select('*')
-        .eq('customer_id', userId); // Use email directly since that's what's stored
+        .eq('customer_id', customerId); // Use customer.id (BIGINT) not email
 
-      // Convert real proposals to pipeline format
+      // Convert real proposals to pipeline format (will be empty array for new users)
       const pipeline: RfpPipelineItem[] = (proposals || []).map((proposal, index) => {
         // Try to find matching RFP
         const matchingRfp = rfps?.find(rfp => rfp.id === proposal.rfp_id);

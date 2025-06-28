@@ -112,9 +112,9 @@ export default function UploadPage() {
                 <div className="grid gap-3">
                   {(analysisResults?.requirements || []).length > 0 ? (
                     (analysisResults?.requirements || []).map((req: string, index: number) => (
-                      <div key={index} className="flex items-start bg-gray-50 p-3 rounded">
-                        <span className="text-blue-600 mr-3 font-bold">•</span>
-                        <span>{req}</span>
+                    <div key={index} className="flex items-start bg-gray-50 p-3 rounded">
+                      <span className="text-blue-600 mr-3 font-bold">•</span>
+                      <span>{req}</span>
                       </div>
                     ))
                   ) : (
@@ -150,23 +150,23 @@ export default function UploadPage() {
                 <div className="grid grid-cols-2 gap-4">
                   {(analysisResults?.evaluation_criteria || []).length > 0 ? (
                     (analysisResults?.evaluation_criteria || []).map((criteria: any, index: number) => {
-                      const colors = [
-                        'from-blue-100 to-blue-50 text-blue-900',
-                        'from-green-100 to-green-50 text-green-900', 
-                        'from-orange-100 to-orange-50 text-orange-900',
-                        'from-purple-100 to-purple-50 text-purple-900'
-                      ];
-                      return (
-                        <div key={index} className={`bg-gradient-to-r ${colors[index % colors.length]} p-4 rounded-lg`}>
-                          <div className="font-bold">{criteria.criterion}</div>
-                          <div className="text-2xl font-bold">{criteria.weight}%</div>
-                          <div className="text-sm opacity-80">
-                            {criteria.weight >= 30 ? 'High priority - focus here!' : 
-                             criteria.weight >= 20 ? 'Important factor' : 
-                             'Consider in proposal'}
-                          </div>
+                    const colors = [
+                      'from-blue-100 to-blue-50 text-blue-900',
+                      'from-green-100 to-green-50 text-green-900', 
+                      'from-orange-100 to-orange-50 text-orange-900',
+                      'from-purple-100 to-purple-50 text-purple-900'
+                    ];
+                    return (
+                      <div key={index} className={`bg-gradient-to-r ${colors[index % colors.length]} p-4 rounded-lg`}>
+                        <div className="font-bold">{criteria.criterion}</div>
+                        <div className="text-2xl font-bold">{criteria.weight}%</div>
+                        <div className="text-sm opacity-80">
+                          {criteria.weight >= 30 ? 'High priority - focus here!' : 
+                           criteria.weight >= 20 ? 'Important factor' : 
+                           'Consider in proposal'}
                         </div>
-                      );
+                      </div>
+                    );
                     })
                   ) : (
                     <>
@@ -204,7 +204,7 @@ export default function UploadPage() {
                     <ul className="space-y-2 text-green-700">
                       {(analysisResults?.strategy_recommendations || []).length > 0 ? (
                         (analysisResults?.strategy_recommendations || []).map((rec: string, index: number) => (
-                          <li key={index}>• {rec}</li>
+                        <li key={index}>• {rec}</li>
                         ))
                       ) : (
                         <div className="text-green-700">
@@ -216,9 +216,9 @@ export default function UploadPage() {
                         </div>
                       )}
                     </ul>
-                    <p className="text-sm text-green-600 mt-3">
+                      <p className="text-sm text-green-600 mt-3">
                       📅 Timeline: {analysisResults?.timeline || '6-8 months'} | 💰 Budget: {analysisResults?.budget_range || 'Contact for quote'}
-                    </p>
+                      </p>
                   </div>
                 </div>
               </div>
@@ -229,18 +229,18 @@ export default function UploadPage() {
                 <div className="grid gap-3">
                   {(analysisResults?.risk_factors || []).length > 0 ? (
                     (analysisResults?.risk_factors || []).map((risk: string, index: number) => (
-                      <div key={index} className={`p-3 rounded border-l-4 ${
-                        index % 2 === 0 ? 'bg-red-50 border-red-400' : 'bg-yellow-50 border-yellow-400'
+                    <div key={index} className={`p-3 rounded border-l-4 ${
+                      index % 2 === 0 ? 'bg-red-50 border-red-400' : 'bg-yellow-50 border-yellow-400'
+                    }`}>
+                      <span className={`font-semibold ${
+                        index % 2 === 0 ? 'text-red-800' : 'text-yellow-800'
                       }`}>
-                        <span className={`font-semibold ${
-                          index % 2 === 0 ? 'text-red-800' : 'text-yellow-800'
-                        }`}>
-                          {index % 2 === 0 ? 'HIGH RISK: ' : 'MEDIUM RISK: '}
-                        </span>
-                        <span className={index % 2 === 0 ? 'text-red-700' : 'text-yellow-700'}>
-                          {risk}
-                        </span>
-                      </div>
+                        {index % 2 === 0 ? 'HIGH RISK: ' : 'MEDIUM RISK: '}
+                      </span>
+                      <span className={index % 2 === 0 ? 'text-red-700' : 'text-yellow-700'}>
+                        {risk}
+                      </span>
+                    </div>
                     ))
                   ) : (
                     <div className="space-y-3">
@@ -294,21 +294,21 @@ export default function UploadPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-              {/* Header */}
-        <header className="bg-white shadow-sm border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center">
-                <div className="h-8 w-8 bg-blue-600 rounded"></div>
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <div className="h-8 w-8 bg-blue-600 rounded"></div>
                 <span className="ml-2 text-xl font-bold text-gray-900">RFP Win Platform</span>
               </div>
               <div className="flex items-center space-x-4">
                 <span className="text-sm text-gray-600">Basic Plan • 24/25 analyses remaining</span>
                 <Link href="/profile" className="text-sm text-blue-600 hover:text-blue-800">Account</Link>
-              </div>
             </div>
           </div>
-        </header>
+        </div>
+      </header>
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-8">
