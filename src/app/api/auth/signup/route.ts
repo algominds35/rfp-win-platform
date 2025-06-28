@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const analysesLimit = planLimits[plan as keyof typeof planLimits] || 3;
 
     // Use AuthService to register user
-    const result = await AuthService.register(email, password, firstName);
+    const result = await AuthService.register(email, password, firstName, lastName, company);
 
     if (!result.success) {
       return NextResponse.json(

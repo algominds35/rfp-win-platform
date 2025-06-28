@@ -75,7 +75,7 @@ export class AuthService {
   }
 
   // Register new user
-  static async register(email: string, password: string, name?: string): Promise<{ success: boolean; user?: User; error?: string }> {
+  static async register(email: string, password: string, firstName?: string, lastName?: string, company?: string): Promise<{ success: boolean; user?: User; error?: string }> {
     try {
       // Check if user already exists
       const { data: existingCustomer } = await supabaseAdmin
@@ -93,10 +93,15 @@ export class AuthService {
         .from('customers')
         .insert({
           email,
+          first_name: firstName || '',
+          last_name: lastName || '',
+          company: company || '',
           plan_type: 'free',
           analyses_limit: 3,
           analyses_used: 0,
-          created_at: new Date().toISOString()
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
         .select()
         .single();
@@ -109,7 +114,7 @@ export class AuthService {
       const user: User = {
         id: newCustomer.email,
         email: newCustomer.email,
-        name: name || email.split('@')[0],
+        name: firstName ? `${firstName} ${lastName || ''}`.trim() : email.split('@')[0],
         created_at: newCustomer.created_at
       };
 
