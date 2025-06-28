@@ -81,14 +81,17 @@ export default function HomePage() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link 
+              href="/demo"
+              className="bg-green-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-green-700 transition-colors text-lg"
+            >
+              🚀 Try Live Demo
+            </Link>
+            <Link 
               href="/signup?plan=free"
               className="bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-lg"
             >
               Get Started Free
             </Link>
-            <button className="border-2 border-blue-600 text-blue-600 px-8 py-4 rounded-lg font-semibold hover:bg-blue-50 transition-colors text-lg">
-              Watch Demo
-            </button>
           </div>
         </div>
       </section>

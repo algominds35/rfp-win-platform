@@ -11,7 +11,12 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const userId = formData.get('userId') as string;
+    let userId = formData.get('userId') as string;
+    
+    // If no userId provided, use demo user
+    if (!userId || userId === 'demo-user@example.com') {
+      userId = 'demo@rfpwin.com';
+    }
 
     if (!file || !userId) {
       return NextResponse.json(
@@ -275,7 +280,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      if (customer?.id) {
+      if (customer && customer.id) {
         // Save the RFP to database
         const { data: savedRfp, error: saveError } = await supabaseAdmin
           .from('rfps')
