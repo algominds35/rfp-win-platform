@@ -21,34 +21,50 @@ export async function POST(request: NextRequest) {
       .eq('email', email)
       .single();
 
-    if (error) {
-      console.error('Database error:', error);
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 401 }
-      );
+    let userRecord = customer;
+
+    // If user doesn't exist, create them automatically
+    if (error || !customer) {
+      console.log('User not found, creating new account for:', email);
+      
+      const { data: newUser, error: createError } = await supabaseAdmin
+        .from('customers')
+        .insert({
+          email: email,
+          first_name: email.split('@')[0], // Use email prefix as first name
+          last_name: 'User',
+          company: 'My Company',
+          plan_type: 'free',
+          analyses_limit: 3,
+          analyses_used: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('Failed to create user:', createError);
+        return NextResponse.json(
+          { error: 'Failed to create account' },
+          { status: 500 }
+        );
+      }
+
+      userRecord = newUser;
+      console.log('✅ Auto-created user account:', email);
     }
 
-    if (!customer) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 401 }
-      );
-    }
-
-    console.log('User found:', customer.email);
-
-    // For demo purposes, accept any password
-    // In production, you'd verify password hash here
+    console.log('User login successful:', userRecord.email);
 
     return NextResponse.json({
       success: true,
       user: {
-        id: customer.id,
-        email: customer.email,
-        plan: customer.plan_type,
-        analysesLimit: customer.analyses_limit,
-        analysesUsed: customer.analyses_used
+        id: userRecord.id,
+        email: userRecord.email,
+        plan: userRecord.plan_type,
+        analysesLimit: userRecord.analyses_limit,
+        analysesUsed: userRecord.analyses_used
       },
       message: 'Login successful'
     });
